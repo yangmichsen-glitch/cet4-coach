@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>四级口语陪练</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="口语陪练">
+<link rel="apple-touch-icon" href="icons/icon-152x152.png">
+<link rel="apple-touch-startup-image" href="icons/icon-512x512.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e1a;
+  --surface: #121828;
+  --surface2: #1a2235;
+  --border: rgba(255,255,255,0.08);
+  --accent: #4f8ef7;
+  --accent2: #7c3aed;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --text: #f0f4ff;
+  --muted: #8892a4;
+  --font: 'Noto Sans SC', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── top bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 0;
+}
+.topbar-title { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: .06em; }
+.topbar-badge {
+  font-size: 11px; font-family: var(--mono);
+  background: rgba(79,142,247,.15); color: var(--accent);
+  padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(79,142,247,.25);
+}
+
+/* ── screens ── */
+.screen { display: none; flex: 1; flex-direction: column; padding: 20px; overflow-y: auto; }
+.screen.active { display: flex; }
+
+/* ── home ── */
+.home-hero { margin: 28px 0 24px; }
+.home-hero h1 { font-size: 26px; font-weight: 700; line-height: 1.3; }
+.home-hero h1 span { color: var(--accent); }
+.home-hero p { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+.part-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.part-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+  position: relative;
+  overflow: hidden;
+}
+.part-card:active { transform: scale(.97); }
+.part-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--card-accent, var(--accent));
+  border-radius: 16px 16px 0 0;
+}
+.part-card:hover { border-color: rgba(255,255,255,.18); }
+.card-tag {
+  font-size: 10px; font-family: var(--mono);
+  color: var(--card-color, var(--accent));
+  background: var(--card-bg, rgba(79,142,247,.1));
+  padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 8px;
+}
+.part-card h3 { font-size: 14px; font-weight: 700; }
+.part-card p { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.part-full { grid-column: span 2; }
+
+.streak-bar {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.streak-info { font-size: 13px; color: var(--muted); }
+.streak-info strong { color: var(--text); font-size: 18px; font-family: var(--mono); margin-right: 4px; }
+.streak-dots { display: flex; gap: 5px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.dot.done { background: var(--accent); }
+
+/* ── practice ── */
+.back-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  padding: 0; margin-bottom: 16px; font-family: var(--font);
+}
+.back-btn svg { width: 16px; height: 16px; }
+
+.progress-track { height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 20px; }
+.progress-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .4s; }
+
+.question-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+  flex: none;
+}
+.question-card .examiner {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.examiner-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.examiner-name { font-size: 13px; font-weight: 500; }
+.examiner-sub { font-size: 11px; color: var(--muted); }
+
+.question-text {
+  font-size: 17px; line-height: 1.65; color: var(--text);
+  font-weight: 500;
+}
+.question-cn {
+  font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6;
+  padding-top: 10px; border-top: 1px solid var(--border);
+}
+
+.time-badges { display: flex; gap: 8px; margin-bottom: 16px; }
+.time-badge {
+  font-size: 11px; font-family: var(--mono);
+  padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.time-badge.active { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,.1); }
+
+.mic-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px 0; }
+.timer-display { font-size: 38px; font-family: var(--mono); font-weight: 500; color: var(--text); margin-bottom: 6px; }
+.timer-label { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+
+.mic-ring {
+  width: 88px; height: 88px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; transition: border-color .2s;
+}
+.mic-ring:active { transform: scale(.95); }
+.mic-ring.prep { border-color: rgba(79,142,247,.3); }
+.mic-ring.recording {
+  border-color: var(--red);
+  animation: ring-pulse 1.4s ease-in-out infinite;
+}
+.mic-ring.done { border-color: var(--green); }
+@keyframes ring-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.3); }
+  50% { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+}
+.mic-inner {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+}
+.mic-inner svg { width: 26px; height: 26px; }
+.mic-hint { font-size: 12px; color: var(--muted); margin-top: 14px; text-align: center; }
+
+.action-row { display: flex; gap: 10px; margin-top: 12px; }
+.btn {
+  flex: 1; padding: 13px; border-radius: 13px;
+  font-size: 14px; font-weight: 500; font-family: var(--font);
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  transition: background .15s, transform .1s;
+}
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.primary:hover { background: #3b7de8; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── AI loading ── */
+.ai-loading {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 14px; font-size: 13px; color: var(--muted);
+}
+.dots { display: flex; gap: 4px; }
+.dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); animation: dot-bounce .9s infinite;
+}
+.dots span:nth-child(2) { animation-delay: .15s; }
+.dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes dot-bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+/* ── feedback ── */
+.score-hero {
+  text-align: center; padding: 20px 0 16px;
+}
+.score-num-big { font-size: 64px; font-family: var(--mono); font-weight: 500; line-height: 1; }
+.score-grade { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.score-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.score-bar-label { font-size: 12px; color: var(--muted); width: 44px; flex-shrink: 0; }
+.score-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .6s .1s; }
+.score-bar-val { font-size: 12px; font-family: var(--mono); color: var(--text); width: 28px; text-align: right; }
+
+.feedback-block {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+}
+.fb-title { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.fb-item { display: flex; gap: 10px; margin-bottom: 10px; }
+.fb-item:last-child { margin-bottom: 0; }
+.fb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.fb-dot.good { background: var(--green); }
+.fb-dot.warn { background: var(--amber); }
+.fb-body { font-size: 13px; color: var(--text); line-height: 1.65; }
+
+.model-block {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  border-left: 3px solid var(--accent2);
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+}
+.model-label { font-size: 11px; color: var(--accent2); font-weight: 500; margin-bottom: 8px; }
+.model-text { font-size: 14px; line-height: 1.75; color: var(--text); }
+.transcript-text { font-size: 13px; line-height: 1.7; color: var(--muted); font-style: italic; }
+
+.error-box {
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+  border-radius: 12px; padding: 14px; font-size: 13px; color: #fca5a5; line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+/* ── waveform viz ── */
+.waveform { display: flex; align-items: center; justify-content: center; gap: 3px; height: 32px; margin: 8px 0; }
+.wave-bar {
+  width: 3px; border-radius: 2px; background: var(--accent);
+  height: 4px; transition: height .1s;
+}
+
+
+.offline-banner {
+  display: none; position: relative; z-index: 99;
+  background: rgba(245,158,11,.15); border-bottom: 1px solid rgba(245,158,11,.3);
+  color: #fbbf24; font-size: 12px; text-align: center; padding: 6px;
+  font-family: var(--font);
+}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+<div class="offline-banner" id="offline-banner">无网络连接 — AI 功能暂时不可用，界面仍可浏览</div>
+  <div class="topbar">
+    <span class="topbar-title">四级口语陪练</span>
+    <span class="topbar-badge" id="api-status">● AI 就绪</span>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="home-hero">
+      <h1>你好，<span>准备练习了吗？</span></h1>
+      <p>AI 考官陪你练，出题 · 评分 · 给建议，随时开练。</p>
+    </div>
+    <div class="part-grid">
+      <div class="part-card" style="--card-accent:#4f8ef7;--card-color:#4f8ef7;--card-bg:rgba(79,142,247,.1);" onclick="startPart('A')">
+        <div class="card-tag">Part A</div>
+        <h3>朗读短文</h3>
+        <p>Reading aloud<br>准确发音 &amp; 语调</p>
+      </div>
+      <div class="part-card" style="--card-accent:#7c3aed;--card-color:#a78bfa;--card-bg:rgba(124,58,237,.1);" onclick="startPart('B')">
+        <div class="card-tag">Part B</div>
+        <h3>复述对话</h3>
+        <p>Retelling<br>听懂后英语复述</p>
+      </div>
+      <div class="part-card" style="--card-accent:#10b981;--card-color:#34d399;--card-bg:rgba(16,185,129,.1);" onclick="startPart('C')">
+        <div class="card-tag">Part C</div>
+        <h3>回答问题</h3>
+        <p>Q&amp;A<br>即兴回答考官问题</p>
+      </div>
+      <div class="part-card" style="--card-accent:#f59e0b;--card-color:#fbbf24;--card-bg:rgba(245,158,11,.1);" onclick="startPart('mock')">
+        <div class="card-tag">模拟考试</div>
+        <h3>完整模拟</h3>
+        <p>Full mock<br>真实考试流程</p>
+      </div>
+    </div>
+    <div class="streak-bar">
+      <div class="streak-info">
+        <strong id="streak-count">0</strong>题今日已练
+      </div>
+      <div class="streak-dots" id="streak-dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRACTICE -->
+  <div class="screen" id="screen-practice">
+    <button class="back-btn" onclick="goHome()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/></svg>
+      返回
+    </button>
+    <div class="progress-track"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+    <div id="loading-question" class="ai-loading" style="display:none;">
+      <div class="dots"><span></span><span></span><span></span></div>
+      AI 考官出题中...
+    </div>
+
+    <div class="question-card" id="question-card">
+      <div class="examiner">
+        <div class="examiner-avatar">🎓</div>
+        <div>
+          <div class="examiner-name">AI 考官</div>
+          <div class="examiner-sub" id="part-label-small">Part C · 回答问题</div>
+        </div>
+      </div>
+      <div class="question-text" id="task-text">点击开始，AI 将为你生成题目</div>
+      <div class="question-cn" id="task-cn"></div>
+    </div>
+
+    <div class="time-badges">
+      <div class="time-badge active" id="badge-prep">准备 15s</div>
+      <div class="time-badge" id="badge-speak">作答 60s</div>
+    </div>
+
+    <div class="mic-section">
+      <div class="timer-display" id="timer-display">0:15</div>
+      <div class="timer-label" id="timer-label">准备中 — 即将出题</div>
+      <div class="waveform" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+      </div>
+      <div class="mic-ring prep" id="mic-ring" onclick="handleMicClick()">
+        <div class="mic-inner">
+          <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0 0 14 0"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+        </div>
+      </div>
+      <div class="mic-hint" id="mic-hint">先生成题目，再点击录音</div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn" onclick="generateQuestion(currentPart)" id="gen-btn">✦ 生成题目</button>
+      <button class="btn primary" id="submit-btn" onclick="goFeedback()" disabled>查看反馈</button>
+    </div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div class="screen" id="screen-feedback">
+    <button class="back-btn" onclick="showScreen('practice')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/></svg>
+      返回练习
+    </button>
+
+    <div id="loading-feedback" class="ai-loading" style="display:none;">
+      <div class="dots"><span></span><span></span><span></span></div>
+      AI 正在分析你的回答...
+    </div>
+
+    <div id="feedback-content" style="display:none;">
+      <div class="score-hero">
+        <div class="score-num-big" id="score-total" style="color:var(--accent)">--</div>
+        <div class="score-grade" id="score-grade">等待评分</div>
+      </div>
+
+      <div class="feedback-block">
+        <div class="fb-title">细项评分</div>
+        <div class="score-bar-row">
+          <div class="score-bar-label">发音</div>
+          <div class="score-bar-track"><div class="score-bar-fill" id="bar-pron" style="width:0%"></div></div>
+          <div class="score-bar-val" id="val-pron">--</div>
+        </div>
+        <div class="score-bar-row">
+          <div class="score-bar-label">流利度</div>
+          <div class="score-bar-track"><div class="score-bar-fill" id="bar-flu" style="width:0%"></div></div>
+          <div class="score-bar-val" id="val-flu">--</div>
+        </div>
+        <div class="score-bar-row">
+          <div class="score-bar-label">内容</div>
+          <div class="score-bar-track"><div class="score-bar-fill" id="bar-con" style="width:0%"></div></div>
+          <div class="score-bar-val" id="val-con">--</div>
+        </div>
+      </div>
+
+      <div class="feedback-block" id="feedback-items">
+        <div class="fb-title">AI 反馈</div>
+      </div>
+
+      <div class="model-block">
+        <div class="model-label">范例答案 Model Answer</div>
+        <div class="model-text" id="model-answer"></div>
+      </div>
+
+      <div class="feedback-block" id="transcript-block" style="display:none;">
+        <div class="fb-title">你说的内容（识别文字）</div>
+        <div class="transcript-text" id="transcript-text"></div>
+      </div>
+    </div>
+
+    <div id="feedback-error" class="error-box" style="display:none;"></div>
+
+    <div class="action-row" style="margin-top:4px;">
+      <button class="btn" onclick="generateQuestion(currentPart); showScreen('practice')">再练一题</button>
+      <button class="btn primary" onclick="goHome()">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PART_CONFIG = {
+  A: { label:'Part A · 朗读短文', prepTime:30, speakTime:120,
+       prompt:'Generate a short English passage (60-80 words) suitable for CET-4 reading aloud practice. The topic should be everyday or academic. Return JSON: {"question":"<the passage>","cn":"<Chinese translation of the passage>"}' },
+  B: { label:'Part B · 复述对话', prepTime:60, speakTime:120,
+       prompt:'Generate a short English dialogue (2 people, 4-6 lines, about everyday life) for CET-4 retelling practice. Then ask the student to retell it. Return JSON: {"question":"<full dialogue + instruction to retell it>","cn":"<Chinese brief summary>"}' },
+  C: { label:'Part C · 回答问题', prepTime:15, speakTime:60,
+       prompt:'Generate one CET-4 oral exam speaking question in English. It should be a personal opinion or daily life topic appropriate for Chinese university students. Return JSON: {"question":"<the question>","cn":"<Chinese translation>"}' },
+  mock: { label:'模拟考试', prepTime:15, speakTime:60,
+       prompt:'Generate one CET-4 oral exam question. Mix of topics: daily life, study, society, culture. Return JSON: {"question":"<question>","cn":"<Chinese translation>"}' }
+};
+
+let currentPart = 'C';
+let timerInt = null;
+let recording = false;
+let prepDone = false;
+let seconds = 15;
+let transcript = '';
+let currentQuestion = '';
+let practiceCount = 0;
+let waveAnim = null;
+let recognition = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+function goHome() {
+  clearInterval(timerInt); stopRecording(false);
+  showScreen('home');
+}
+
+function startPart(part) {
+  currentPart = part;
+  transcript = ''; currentQuestion = '';
+  prepDone = false; recording = false;
+  clearInterval(timerInt);
+  const cfg = PART_CONFIG[part];
+  document.getElementById('part-label-small').textContent = cfg.label;
+  document.getElementById('task-text').textContent = '点击「生成题目」，AI 考官将为你出题';
+  document.getElementById('task-cn').textContent = '';
+  document.getElementById('timer-display').textContent = '0:' + String(cfg.prepTime).padStart(2,'0');
+  document.getElementById('timer-label').textContent = '准备中 — 先生成题目';
+  document.getElementById('mic-hint').textContent = '先生成题目，再点击录音';
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('gen-btn').disabled = false;
+  setMicState('idle');
+  resetBadges();
+  document.getElementById('progress').style.width = '10%';
+  showScreen('practice');
+}
+
+async function generateQuestion(part) {
+  const cfg = PART_CONFIG[part];
+  document.getElementById('loading-question').style.display = 'flex';
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('task-text').textContent = '出题中...';
+  document.getElementById('task-cn').textContent = '';
+  clearInterval(timerInt);
+  transcript = ''; prepDone = false; recording = false;
+  setMicState('idle');
+  document.getElementById('submit-btn').disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: 'You are a CET-4 oral exam question generator. Always respond with valid JSON only, no markdown, no explanation.',
+        messages: [{ role: 'user', content: cfg.prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(b => b.text || '').join('');
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    currentQuestion = parsed.question;
+    document.getElementById('task-text').textContent = parsed.question;
+    document.getElementById('task-cn').textContent = parsed.cn || '';
+    document.getElementById('loading-question').style.display = 'none';
+    document.getElementById('gen-btn').disabled = false;
+    document.getElementById('progress').style.width = '33%';
+    startPrepTimer(cfg.prepTime);
+  } catch(e) {
+    document.getElementById('loading-question').style.display = 'none';
+    document.getElementById('task-text').textContent = '出题失败，请检查网络后重试。';
+    document.getElementById('gen-btn').disabled = false;
+  }
+}
+
+function startPrepTimer(secs) {
+  seconds = secs;
+  updateTimerDisplay(seconds);
+  document.getElementById('timer-label').textContent = '准备中 — prep time';
+  document.getElementById('badge-prep').classList.add('active');
+  document.getElementById('badge-speak').classList.remove('active');
+  document.getElementById('mic-hint').textContent = '准备好了就点击麦克风开始录音';
+  setMicState('prep');
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    seconds--;
+    updateTimerDisplay(seconds);
+    if (seconds <= 0) {
+      clearInterval(timerInt);
+      prepDone = true;
+      document.getElementById('timer-label').textContent = '准备结束 — 请开始作答';
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay(s) {
+  const m = Math.floor(s / 60), sec = Math.max(0, s % 60);
+  document.getElementById('timer-display').textContent = m + ':' + String(sec).padStart(2,'0');
+}
+
+function handleMicClick() {
+  if (!currentQuestion) return;
+  if (!recording) startRecording();
+  else stopRecording(true);
+}
+
+function startRecording() {
+  clearInterval(timerInt);
+  recording = true; prepDone = true;
+  transcript = '';
+  const cfg = PART_CONFIG[currentPart];
+  seconds = cfg.speakTime;
+  setMicState('recording');
+  document.getElementById('timer-label').textContent = '录音中 — speak now';
+  document.getElementById('mic-hint').textContent = '点击停止录音';
+  document.getElementById('badge-prep').classList.remove('active');
+  document.getElementById('badge-speak').classList.add('active');
+  document.getElementById('progress').style.width = '66%';
+  startWaveAnim();
+
+  // Web Speech API
+  try {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (e) => {
+        let final = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+        }
+        if (final) transcript = final.trim();
+      };
+      recognition.start();
+    }
+  } catch(e) {}
+
+  timerInt = setInterval(() => {
+    seconds--;
+    updateTimerDisplay(seconds);
+    if (seconds <= 0) { clearInterval(timerInt); stopRecording(true); }
+  }, 1000);
+}
+
+function stopRecording(finished) {
+  recording = false;
+  clearInterval(timerInt);
+  stopWaveAnim();
+  if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+  if (finished) {
+    setMicState('done');
+    document.getElementById('timer-label').textContent = '录音完成 — 点击查看反馈';
+    document.getElementById('mic-hint').textContent = '很好！点击右侧按钮查看 AI 反馈';
+    document.getElementById('submit-btn').disabled = false;
+    document.getElementById('progress').style.width = '90%';
+  } else {
+    setMicState('idle');
+  }
+}
+
+function setMicState(state) {
+  const ring = document.getElementById('mic-ring');
+  const icon = document.getElementById('mic-icon');
+  ring.className = 'mic-ring ' + state;
+  const colors = { idle:'#8892a4', prep:'#4f8ef7', recording:'#ef4444', done:'#10b981' };
+  icon.style.stroke = colors[state] || '#8892a4';
+}
+
+function startWaveAnim() {
+  const bars = document.querySelectorAll('.wave-bar');
+  waveAnim = setInterval(() => {
+    bars.forEach(b => { b.style.height = (4 + Math.random() * 24) + 'px'; });
+  }, 120);
+}
+function stopWaveAnim() {
+  clearInterval(waveAnim);
+  document.querySelectorAll('.wave-bar').forEach(b => { b.style.height = '4px'; });
+}
+
+function resetBadges() {
+  document.getElementById('badge-prep').classList.add('active');
+  document.getElementById('badge-speak').classList.remove('active');
+}
+
+async function goFeedback() {
+  showScreen('feedback');
+  document.getElementById('loading-feedback').style.display = 'flex';
+  document.getElementById('feedback-content').style.display = 'none';
+  document.getElementById('feedback-error').style.display = 'none';
+
+  const transcriptNote = transcript
+    ? `The student said: "${transcript}"`
+    : `(No speech-to-text available — evaluate based on the question only, give encouraging placeholder feedback)`;
+
+  const prompt = `You are a CET-4 oral English examiner. The question was: "${currentQuestion}"
+
+${transcriptNote}
+
+Give detailed feedback. Return JSON only:
+{
+  "total": <number 0-100>,
+  "pronunciation": <number 0-100>,
+  "fluency": <number 0-100>,
+  "content": <number 0-100>,
+  "grade": "<优秀/良好/中等/需加油>",
+  "positives": ["<strength 1 in Chinese>", "<strength 2 in Chinese>"],
+  "improvements": ["<tip 1 in Chinese>", "<tip 2 in Chinese>"],
+  "modelAnswer": "<A natural model answer in English, 3-5 sentences>"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        system: 'You are a CET-4 oral exam evaluator. Always respond with valid JSON only.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(b => b.text || '').join('');
+    const fb = JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    document.getElementById('loading-feedback').style.display = 'none';
+    document.getElementById('feedback-content').style.display = 'block';
+    document.getElementById('progress').style.width = '100%';
+
+    const total = fb.total || 0;
+    document.getElementById('score-total').textContent = total;
+    document.getElementById('score-total').style.color = total >= 80 ? '#10b981' : total >= 60 ? '#4f8ef7' : '#f59e0b';
+    document.getElementById('score-grade').textContent = fb.grade || '';
+
+    ['pron','flu','con'].forEach((k,i) => {
+      const vals = [fb.pronunciation, fb.fluency, fb.content];
+      const v = vals[i] || 0;
+      setTimeout(() => {
+        document.getElementById('bar-' + k).style.width = v + '%';
+        document.getElementById('val-' + k).textContent = v;
+      }, 200 + i * 100);
+    });
+
+    const fbItems = document.getElementById('feedback-items');
+    fbItems.innerHTML = '<div class="fb-title">AI 反馈</div>';
+    (fb.positives || []).forEach(t => {
+      fbItems.innerHTML += `<div class="fb-item"><div class="fb-dot good"></div><div class="fb-body">${t}</div></div>`;
+    });
+    (fb.improvements || []).forEach(t => {
+      fbItems.innerHTML += `<div class="fb-item"><div class="fb-dot warn"></div><div class="fb-body">${t}</div></div>`;
+    });
+
+    document.getElementById('model-answer').textContent = fb.modelAnswer || '';
+
+    if (transcript) {
+      document.getElementById('transcript-block').style.display = 'block';
+      document.getElementById('transcript-text').textContent = '"' + transcript + '"';
+    }
+
+    practiceCount++;
+    document.getElementById('streak-count').textContent = practiceCount;
+    const dots = document.querySelectorAll('#streak-dots .dot');
+    dots.forEach((d, i) => { if (i < Math.min(practiceCount, 5)) d.classList.add('done'); });
+
+  } catch(e) {
+    document.getElementById('loading-feedback').style.display = 'none';
+    document.getElementById('feedback-error').style.display = 'block';
+    document.getElementById('feedback-error').textContent = 'AI 反馈加载失败，请检查网络连接后重试。错误：' + e.message;
+  }
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('SW registered'))
+      .catch(e => console.log('SW error', e));
+  });
+}
+// Handle shortcuts deeplink e.g. ?start=C
+(function() {
+  const p = new URLSearchParams(location.search).get('start');
+  if (p) window.addEventListener('DOMContentLoaded', () => startPart(p));
+})();
+
+window.addEventListener('online',  () => { document.getElementById('offline-banner').style.display = 'none'; });
+window.addEventListener('offline', () => { document.getElementById('offline-banner').style.display = 'block'; });
+if (!navigator.onLine) document.getElementById('offline-banner').style.display = 'block';
+
+</script>
+</body>
+</html>
+
+{
+  "name": "四级口语陪练",
+  "short_name": "口语陪练",
+  "description": "CET-4 AI 英语口语陪练，随时随地练习四级口语",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "orientation": "portrait",
+  "lang": "zh-CN",
+  "categories": ["education"],
+  "icons": [
+    { "src": "icons/icon-72x72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-96x96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-128x128.png", "sizes": "128x128", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-144x144.png", "sizes": "144x144", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-152x152.png", "sizes": "152x152", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-384x384.png", "sizes": "384x384", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Part C 回答问题",
+      "short_name": "回答问题",
+      "description": "直接开始 Part C 练习",
+      "url": "/index.html?start=C",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "完整模拟考试",
+      "short_name": "模拟考试",
+      "description": "开始完整模拟考试",
+      "url": "/index.html?start=mock",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    }
+  ]
+}
+
+const CACHE = 'cet4-coach-v1';
+const OFFLINE_ASSETS = [
+  '/index.html',
+  '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap'
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(OFFLINE_ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+
+  // Always go network-first for Anthropic API calls
+  if (url.hostname === 'api.anthropic.com') {
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        new Response(JSON.stringify({
+          error: true,
+          message: '当前无网络，AI 功能需要网络连接'
+        }), { headers: { 'Content-Type': 'application/json' } })
+      )
+    );
+    return;
+  }
+
+  // Cache-first for app shell assets
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(res => {
+        if (res.ok && e.request.method === 'GET') {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => {
+        if (e.request.destination === 'document') {
+          return caches.match('/index.html');
+        }
+      });
+    })
+  );
+});
