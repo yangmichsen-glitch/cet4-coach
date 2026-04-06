@@ -13,1155 +13,587 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
-  --bg:#0d1117;--s1:#161b22;--s2:#1c2128;--s3:#21262d;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
-  --text:#e6edf3;--muted:#7d8590;--hint:#484f58;
-  --blue:#4493f8;--blue-dim:rgba(68,147,248,0.12);
-  --green:#3fb950;--green-dim:rgba(63,185,80,0.12);
-  --amber:#d29922;--amber-dim:rgba(210,153,34,0.12);
-  --red:#f85149;--red-dim:rgba(248,81,73,0.12);
-  --purple:#bc8cff;--purple-dim:rgba(188,140,255,0.12);
-  --font:'Noto Sans SC',sans-serif;
-  --display:'Syne',sans-serif;
-  --mono:'JetBrains Mono',monospace;
-}
+:root{--bg:#0d1117;--s1:#161b22;--s2:#1c2128;--s3:#21262d;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#e6edf3;--muted:#7d8590;--hint:#484f58;--blue:#4493f8;--blue-dim:rgba(68,147,248,0.12);--green:#3fb950;--green-dim:rgba(63,185,80,0.12);--amber:#d29922;--amber-dim:rgba(210,153,34,0.12);--red:#f85149;--red-dim:rgba(248,81,73,0.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,0.12);--font:'Noto Sans SC',sans-serif;--display:'Syne',sans-serif;--mono:'JetBrains Mono',monospace}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
 .app{height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative}
-
-/* ── nav bar ── */
-.navbar{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 20px 10px;border-bottom:1px solid var(--border);
-  flex-shrink:0;
-}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
 .nav-logo{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:-.02em}
 .nav-logo span{color:var(--blue)}
 .nav-date{font-size:11px;color:var(--muted);font-family:var(--mono)}
-
-/* ── tab bar ── */
-.tabbar{
-  display:flex;border-top:1px solid var(--border);
-  flex-shrink:0;background:var(--s1);
-}
-.tab{
-  flex:1;display:flex;flex-direction:column;align-items:center;
-  gap:3px;padding:10px 4px 12px;cursor:pointer;
-  font-size:10px;color:var(--muted);transition:color .2s;
-  border:none;background:none;font-family:var(--font);
-}
+.tabbar{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--s1)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 12px;cursor:pointer;font-size:10px;color:var(--muted);transition:color .2s;border:none;background:none;font-family:var(--font)}
 .tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .tab.active{color:var(--blue)}
-
-/* ── screens ── */
 .screen{display:none;flex:1;overflow-y:auto;overflow-x:hidden}
 .screen.active{display:block}
-.screen-pad{padding:16px 16px 24px}
-
-/* ── home ── */
-.streak-card{
-  background:linear-gradient(135deg,#1c2340,#1a2035);
-  border:1px solid rgba(68,147,248,0.2);
-  border-radius:16px;padding:18px;margin-bottom:14px;
-}
+.sp{padding:16px 16px 24px}
+.streak-card{background:linear-gradient(135deg,#1c2340,#1a2035);border:1px solid rgba(68,147,248,0.2);border-radius:16px;padding:18px;margin-bottom:14px}
 .streak-top{display:flex;justify-content:space-between;align-items:flex-start}
 .streak-label{font-size:12px;color:var(--blue);font-weight:500;margin-bottom:4px}
 .streak-num{font-family:var(--display);font-size:42px;font-weight:800;line-height:1;color:#fff}
 .streak-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.streak-badge{
-  background:var(--blue-dim);border:1px solid rgba(68,147,248,0.3);
-  border-radius:20px;padding:4px 12px;font-size:11px;color:var(--blue);
-  font-family:var(--mono);
-}
+.streak-badge{background:var(--blue-dim);border:1px solid rgba(68,147,248,0.3);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--blue);font-family:var(--mono)}
 .dots-row{display:flex;gap:6px;margin-top:14px}
-.day-dot{
-  flex:1;height:4px;border-radius:2px;background:var(--border2);
-  transition:background .3s;
-}
+.day-dot{flex:1;height:4px;border-radius:2px;background:var(--border2)}
 .day-dot.done{background:var(--blue)}
 .day-dot.today{background:var(--green)}
-
-.section-title{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:16px 0 10px}
-
-.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.module-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:14px;
-  padding:14px;cursor:pointer;transition:border-color .2s,transform .15s;
-  position:relative;overflow:hidden;
-}
-.module-card:active{transform:scale(.97)}
-.module-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--card-color,var(--blue));border-radius:14px 14px 0 0}
-.module-card:hover{border-color:var(--border2)}
+.sec-title{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:16px 0 10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mc{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden}
+.mc:active{transform:scale(.97)}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--card-color,var(--blue));border-radius:14px 14px 0 0}
 .mc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--card-bg,var(--blue-dim))}
 .mc-icon svg{width:16px;height:16px;stroke:var(--card-color,var(--blue));fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.mc-title{font-size:13px;font-weight:500}
-.mc-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.mc-badge{
-  position:absolute;top:10px;right:10px;
-  font-size:10px;font-family:var(--mono);
-  background:var(--card-bg,var(--blue-dim));color:var(--card-color,var(--blue));
-  padding:2px 6px;border-radius:10px;
-}
-
-.daily-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:14px;
-  padding:16px;margin-bottom:10px;
-}
+.mc-t{font-size:13px;font-weight:500}
+.mc-s{font-size:11px;color:var(--muted);margin-top:2px}
+.mc-b{position:absolute;top:10px;right:10px;font-size:10px;font-family:var(--mono);background:var(--card-bg,var(--blue-dim));color:var(--card-color,var(--blue));padding:2px 6px;border-radius:10px}
+.daily-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer}
 .daily-type{font-size:10px;color:var(--purple);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
 .daily-title{font-size:15px;font-weight:500;line-height:1.5}
 .daily-sub{font-size:12px;color:var(--muted);margin-top:4px}
-.daily-tag{
-  display:inline-block;margin-top:8px;
-  font-size:11px;background:var(--purple-dim);color:var(--purple);
-  padding:3px 10px;border-radius:20px;
-}
-
-/* ── word screen ── */
-.word-progress{
-  display:flex;align-items:center;gap:10px;margin-bottom:16px;
-}
+.daily-tag{display:inline-block;margin-top:8px;font-size:11px;background:var(--purple-dim);color:var(--purple);padding:3px 10px;border-radius:20px}
+.wp-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
 .wp-track{flex:1;height:4px;background:var(--border2);border-radius:2px}
 .wp-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .4s}
-.wp-text{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap}
-
-.word-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:18px;
-  padding:24px 20px;text-align:center;margin-bottom:16px;min-height:180px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-}
-.word-en{font-family:var(--display);font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
-.word-phonetic{font-size:13px;color:var(--muted);font-family:var(--mono);margin-bottom:12px}
-.word-type{font-size:11px;background:var(--blue-dim);color:var(--blue);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:10px}
-.word-cn{font-size:18px;font-weight:500;margin-bottom:8px}
-.word-example{font-size:13px;color:var(--muted);line-height:1.7;font-style:italic;padding:10px 0;border-top:1px solid var(--border)}
-.word-example-cn{font-size:12px;color:var(--hint);margin-top:4px}
-
-.word-hidden .word-cn,.word-hidden .word-example,.word-hidden .word-example-cn{
-  filter:blur(8px);transition:filter .3s;cursor:pointer;
-}
-
+.wp-txt{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap}
+.word-card{background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:24px 20px;text-align:center;margin-bottom:14px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.w-en{font-family:var(--display);font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.w-ph{font-size:13px;color:var(--muted);font-family:var(--mono);margin-bottom:10px}
+.w-type{font-size:11px;background:var(--blue-dim);color:var(--blue);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:10px}
+.w-cn{font-size:18px;font-weight:500;margin-bottom:8px}
+.w-ex{font-size:13px;color:var(--muted);line-height:1.7;font-style:italic;padding:10px 0;border-top:1px solid var(--border);width:100%}
+.w-exc{font-size:12px;color:var(--hint);margin-top:4px}
+.word-hidden .w-cn,.word-hidden .w-ex,.word-hidden .w-exc{filter:blur(8px);cursor:pointer}
+.pron-box{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px}
+.pron-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.pron-row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.play-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;background:var(--blue-dim);border:1px solid rgba(68,147,248,0.3);color:var(--blue);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font);flex-shrink:0}
+.play-btn:active{transform:scale(.96)}
+.play-btn.playing{background:var(--green-dim);border-color:rgba(63,185,80,0.3);color:var(--green)}
+.pron-hint{font-size:12px;color:var(--muted);line-height:1.6}
+.rec-pron-btn{display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;border-radius:10px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)}
+.rec-pron-btn.recording{background:var(--red-dim);border-color:rgba(248,81,73,0.3);color:var(--red);animation:rp2 1.2s infinite}
+.rec-pron-btn.done{background:var(--green-dim);border-color:rgba(63,185,80,0.3);color:var(--green)}
+.rec-pron-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+@keyframes rp2{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.25)}50%{box-shadow:0 0 0 8px rgba(248,81,73,0)}}
+.pron-fb{margin-top:12px;background:var(--s3);border-radius:12px;padding:14px;display:none}
+.pron-fb.show{display:block}
+.pf-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pf-score{font-family:var(--display);font-size:36px;font-weight:800;line-height:1}
+.pf-item{display:flex;gap:8px;margin-bottom:8px;font-size:13px;line-height:1.65}
+.pf-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:7px}
+.pf-dot.g{background:var(--green)}.pf-dot.a{background:var(--amber)}
+.pf-tips{background:var(--s1);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.7}
+.pf-tips strong{color:var(--amber);font-size:11px;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
 .btn-row{display:flex;gap:10px;margin-bottom:12px}
-.btn{
-  flex:1;padding:13px;border-radius:13px;font-size:14px;font-weight:500;
-  font-family:var(--font);cursor:pointer;border:1px solid var(--border2);
-  background:var(--s2);color:var(--text);transition:all .15s;
-}
+.btn{flex:1;padding:13px;border-radius:13px;font-size:14px;font-weight:500;font-family:var(--font);cursor:pointer;border:1px solid var(--border2);background:var(--s2);color:var(--text);transition:all .15s}
 .btn:active{transform:scale(.97)}
 .btn.blue{background:var(--blue);color:#fff;border-color:transparent}
 .btn.green{background:var(--green-dim);color:var(--green);border-color:rgba(63,185,80,0.3)}
 .btn.red{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,0.3)}
-.btn.amber{background:var(--amber-dim);color:var(--amber);border-color:rgba(210,153,34,0.3)}
-
-.quiz-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;
-}
-.quiz-q{font-size:15px;font-weight:500;line-height:1.6;margin-bottom:16px}
-.quiz-word{color:var(--blue);font-family:var(--mono)}
-.quiz-options{display:flex;flex-direction:column;gap:8px}
-.quiz-opt{
-  padding:12px 14px;border-radius:10px;border:1px solid var(--border2);
-  background:var(--s2);font-size:14px;cursor:pointer;transition:all .2s;text-align:left;
-  font-family:var(--font);color:var(--text);
-}
-.quiz-opt:active{transform:scale(.99)}
-.quiz-opt.correct{background:var(--green-dim);border-color:rgba(63,185,80,0.4);color:var(--green)}
-.quiz-opt.wrong{background:var(--red-dim);border-color:rgba(248,81,73,0.3);color:var(--red)}
-.quiz-opt.reveal{background:var(--green-dim);border-color:rgba(63,185,80,0.2);color:var(--green)}
-
-/* ── grammar ── */
-.grammar-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;
-}
-.grammar-type-badge{
-  font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
-  padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:12px;
-}
-.grammar-q{font-size:15px;line-height:1.8;font-weight:500;margin-bottom:14px}
-.blank{
-  display:inline-block;min-width:80px;border-bottom:2px solid var(--blue);
-  text-align:center;color:var(--blue);font-family:var(--mono);padding:0 4px;
-}
-.grammar-explain{
-  margin-top:12px;padding:12px;background:var(--s3);border-radius:10px;
-  font-size:13px;color:var(--muted);line-height:1.7;display:none;
-}
-.grammar-explain.show{display:block}
-
-/* ── speaking ── */
-.exam-header{
-  display:flex;align-items:center;gap:10px;margin-bottom:14px;
-}
-.examiner-av{
-  width:40px;height:40px;border-radius:50%;
-  background:linear-gradient(135deg,var(--blue),var(--purple));
-  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
-}
-.examiner-info{flex:1}
-.examiner-name{font-size:13px;font-weight:500}
-.examiner-role{font-size:11px;color:var(--muted)}
+.qcard{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px}
+.qq{font-size:15px;font-weight:500;line-height:1.6;margin-bottom:16px}
+.qword{color:var(--blue);font-family:var(--mono)}
+.qopts{display:flex;flex-direction:column;gap:8px}
+.qopt{padding:12px 14px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);font-size:14px;cursor:pointer;transition:all .2s;text-align:left;font-family:var(--font);color:var(--text)}
+.qopt.correct{background:var(--green-dim);border-color:rgba(63,185,80,0.4);color:var(--green)}
+.qopt.wrong{background:var(--red-dim);border-color:rgba(248,81,73,0.3);color:var(--red)}
+.gram-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px}
+.gram-badge{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:12px}
+.gram-q{font-size:15px;line-height:1.8;font-weight:500;margin-bottom:14px}
+.blank{display:inline-block;min-width:80px;border-bottom:2px solid var(--blue);text-align:center;color:var(--blue);font-family:var(--mono);padding:0 4px}
+.gram-explain{margin-top:12px;padding:12px;background:var(--s3);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.7;display:none}
+.gram-explain.show{display:block}
+.exam-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ex-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ex-info{flex:1}
+.ex-name{font-size:13px;font-weight:500}
+.ex-role{font-size:11px;color:var(--muted)}
 .part-pill{font-size:10px;font-family:var(--mono);background:var(--blue-dim);color:var(--blue);padding:3px 10px;border-radius:20px}
-
-.question-box{
-  background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--blue);
-  border-radius:0 14px 14px 0;padding:16px;margin-bottom:14px;
-}
-.question-en{font-size:16px;font-weight:500;line-height:1.65;margin-bottom:6px}
-.question-cn{font-size:12px;color:var(--muted);line-height:1.6}
-
+.qbox{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:0 14px 14px 0;padding:16px;margin-bottom:14px}
+.qen{font-size:16px;font-weight:500;line-height:1.65;margin-bottom:6px}
+.qcn{font-size:12px;color:var(--muted);line-height:1.6}
 .mic-wrap{display:flex;flex-direction:column;align-items:center;padding:16px 0 8px}
 .timer-big{font-size:40px;font-family:var(--mono);font-weight:500;margin-bottom:4px}
-.timer-phase{font-size:12px;color:var(--muted);margin-bottom:20px}
-.mic-btn{
-  width:80px;height:80px;border-radius:50%;border:2px solid var(--border2);
-  background:var(--s2);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:all .2s;
-}
-.mic-btn svg{width:28px;height:28px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:stroke .2s}
-.mic-btn.ready{border-color:rgba(68,147,248,0.5)}
-.mic-btn.ready svg{stroke:var(--blue)}
-.mic-btn.rec{border-color:var(--red);animation:rpulse 1.2s infinite}
-.mic-btn.rec svg{stroke:var(--red)}
-.mic-btn.done{border-color:rgba(63,185,80,0.5)}
-.mic-btn.done svg{stroke:var(--green)}
-@keyframes rpulse{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.3)}50%{box-shadow:0 0 0 14px rgba(248,81,73,0)}}
+.timer-ph{font-size:12px;color:var(--muted);margin-bottom:20px}
+.mic-btn{width:80px;height:80px;border-radius:50%;border:2px solid var(--border2);background:var(--s2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mic-btn svg{width:28px;height:28px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mic-btn.ready{border-color:rgba(68,147,248,0.5)}.mic-btn.ready svg{stroke:var(--blue)}
+.mic-btn.rec{border-color:var(--red);animation:rp 1.2s infinite}.mic-btn.rec svg{stroke:var(--red)}
+.mic-btn.done{border-color:rgba(63,185,80,0.5)}.mic-btn.done svg{stroke:var(--green)}
+@keyframes rp{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.3)}50%{box-shadow:0 0 0 14px rgba(248,81,73,0)}}
 .wave{display:flex;gap:3px;align-items:center;height:28px;margin:8px 0}
-.wb{width:3px;border-radius:2px;background:var(--blue);height:4px;transition:height .1s}
+.wb{width:3px;border-radius:2px;background:var(--blue);height:4px}
 .mic-hint{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
-
-.feedback-box{
-  background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;
-}
+.fb-box{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
 .fb-score-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .fb-score-big{font-family:var(--display);font-size:48px;font-weight:800;line-height:1}
-.fb-score-info{flex:1}
 .fb-grade{font-size:14px;font-weight:500}
 .fb-sub{font-size:12px;color:var(--muted);margin-top:2px}
 .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.bar-label{font-size:11px;color:var(--muted);width:40px;flex-shrink:0}
+.bar-lbl{font-size:11px;color:var(--muted);width:40px;flex-shrink:0}
 .bar-track{flex:1;height:5px;background:var(--border2);border-radius:3px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px;background:var(--blue);transition:width .6s}
 .bar-val{font-size:11px;font-family:var(--mono);color:var(--text);width:24px;text-align:right}
 .fb-item{display:flex;gap:8px;margin-bottom:8px}
 .fb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:7px}
-.fb-dot.g{background:var(--green)}
-.fb-dot.a{background:var(--amber)}
+.fb-dot.g{background:var(--green)}.fb-dot.a{background:var(--amber)}
 .fb-body{font-size:13px;line-height:1.65}
-.model-box{
-  background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--purple);
-  border-radius:0 12px 12px 0;padding:14px;margin-bottom:12px;
-}
-.model-label{font-size:10px;color:var(--purple);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.model-text{font-size:14px;line-height:1.75;font-style:italic}
-
-/* ── daily ── */
-.daily-rec-card{
-  background:var(--s1);border:1px solid var(--border);border-radius:16px;
-  overflow:hidden;margin-bottom:12px;
-}
-.daily-rec-hero{
-  padding:20px;background:linear-gradient(135deg,#1a1f35,#1c1530);
-  border-bottom:1px solid var(--border);
-}
-.rec-type-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.rec-type-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.rec-type-icon svg{width:14px;height:14px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rec-type-label{font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+.model-box{background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:0 12px 12px 0;padding:14px;margin-bottom:12px}
+.model-lbl{font-size:10px;color:var(--purple);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.model-txt{font-size:14px;line-height:1.75;font-style:italic}
+.drec-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:12px}
+.drec-hero{padding:20px;background:linear-gradient(135deg,#1a1f35,#1c1530);border-bottom:1px solid var(--border)}
+.rtype-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.rtype-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.rtype-icon svg{width:14px;height:14px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rtype-lbl{font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase}
 .rec-title{font-size:17px;font-weight:700;line-height:1.4;margin-bottom:4px}
 .rec-artist{font-size:13px;color:var(--muted)}
 .rec-body{padding:16px}
-.rec-why-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.rec-why{font-size:13px;line-height:1.7;color:var(--text)}
-.rec-phrase{
-  margin-top:12px;background:var(--s3);border-radius:10px;padding:12px;
-}
-.rec-phrase-label{font-size:10px;color:var(--amber);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.rec-phrase-en{font-size:14px;font-weight:500;font-family:var(--mono);color:var(--text);margin-bottom:3px}
+.rec-why-t{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.rec-why{font-size:13px;line-height:1.7}
+.rec-phrase{margin-top:12px;background:var(--s3);border-radius:10px;padding:12px}
+.rec-phrase-lbl{font-size:10px;color:var(--amber);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.rec-phrase-en{font-size:14px;font-weight:500;font-family:var(--mono);margin-bottom:3px}
 .rec-phrase-cn{font-size:12px;color:var(--muted)}
-
-/* ── ai loading ── */
-.ai-loading{
-  display:flex;align-items:center;gap:10px;padding:14px 16px;
-  background:var(--s1);border:1px solid var(--border);border-radius:12px;
-  margin-bottom:14px;font-size:13px;color:var(--muted);
-}
+.ai-load{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--s1);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;font-size:13px;color:var(--muted)}
 .dots{display:flex;gap:4px}
 .dots span{width:5px;height:5px;border-radius:50%;background:var(--blue);animation:db .9s infinite}
 .dots span:nth-child(2){animation-delay:.15s}
 .dots span:nth-child(3){animation-delay:.3s}
 @keyframes db{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
-
-/* ── toast ── */
-.toast{
-  position:absolute;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--s3);border:1px solid var(--border2);border-radius:20px;
-  padding:8px 18px;font-size:13px;color:var(--text);
-  opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:99;
-}
+.toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--s3);border:1px solid var(--border2);border-radius:20px;padding:8px 18px;font-size:13px;color:var(--text);opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-/* scrollbar */
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="navbar">
-    <div class="nav-logo">英语<span>陪练</span></div>
-    <div class="nav-date" id="nav-date"></div>
+<div class="navbar"><div class="nav-logo">英语<span>陪练</span></div><div class="nav-date" id="nav-date"></div></div>
+
+<!-- HOME -->
+<div class="screen active" id="s-home"><div class="sp">
+  <div class="streak-card">
+    <div class="streak-top">
+      <div><div class="streak-label">连续学习</div><div class="streak-num" id="streak-num">0</div><div class="streak-sub">天打卡</div></div>
+      <div class="streak-badge" id="today-badge">今日未打卡</div>
+    </div>
+    <div class="dots-row" id="week-dots"></div>
   </div>
-
-  <!-- HOME -->
-  <div class="screen active" id="s-home">
-  <div class="screen-pad">
-    <div class="streak-card">
-      <div class="streak-top">
-        <div>
-          <div class="streak-label">连续学习</div>
-          <div class="streak-num" id="streak-num">0</div>
-          <div class="streak-sub">天打卡</div>
-        </div>
-        <div class="streak-badge" id="today-badge">今日未打卡</div>
-      </div>
-      <div class="dots-row" id="week-dots"></div>
+  <div class="sec-title">今日功课</div>
+  <div class="grid2">
+    <div class="mc" style="--card-color:var(--blue);--card-bg:var(--blue-dim)" onclick="goTab('words')">
+      <div class="mc-icon"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h6"/></svg></div>
+      <div class="mc-t">每日单词</div><div class="mc-s">10个四级词汇</div><div class="mc-b" id="word-badge">0/10</div>
     </div>
-
-    <div class="section-title">今日功课</div>
-    <div class="module-grid">
-      <div class="module-card" style="--card-color:var(--blue);--card-bg:var(--blue-dim)" onclick="goTab('words')">
-        <div class="mc-icon"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h6"/></svg></div>
-        <div class="mc-title">每日单词</div>
-        <div class="mc-sub">10个四级词汇</div>
-        <div class="mc-badge" id="word-badge">0/10</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--green);--card-bg:var(--green-dim)" onclick="goTab('grammar')">
-        <div class="mc-icon"><svg viewBox="0 0 16 16"><path d="M3 3l10 5-10 5V3z"/></svg></div>
-        <div class="mc-title">语法练习</div>
-        <div class="mc-sub">填空/选择/改错</div>
-        <div class="mc-badge" id="gram-badge">0/5</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--amber);--card-bg:var(--amber-dim)" onclick="goTab('speaking')">
-        <div class="mc-icon"><svg viewBox="0 0 16 16"><rect x="5" y="1" width="6" height="9" rx="3"/><path d="M2 8a6 6 0 0012 0M8 14v2M5 16h6"/></svg></div>
-        <div class="mc-title">口语练习</div>
-        <div class="mc-sub">四级口语陪练</div>
-        <div class="mc-badge">Part C</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--purple);--card-bg:var(--purple-dim)" onclick="goTab('daily')">
-        <div class="mc-icon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg></div>
-        <div class="mc-title">今日推荐</div>
-        <div class="mc-sub">歌曲/演讲/台词</div>
-        <div class="mc-badge">每日更新</div>
-      </div>
+    <div class="mc" style="--card-color:var(--green);--card-bg:var(--green-dim)" onclick="goTab('grammar')">
+      <div class="mc-icon"><svg viewBox="0 0 16 16"><path d="M3 3l10 5-10 5V3z"/></svg></div>
+      <div class="mc-t">语法练习</div><div class="mc-s">填空/选择/改错</div><div class="mc-b" id="gram-badge">0/5</div>
     </div>
-
-    <div class="section-title">今日推荐内容</div>
-    <div class="daily-card" id="home-daily-card">
-      <div class="daily-type" id="hd-type">加载中...</div>
-      <div class="daily-title" id="hd-title"></div>
-      <div class="daily-sub" id="hd-sub"></div>
-      <div class="daily-tag" id="hd-tag"></div>
+    <div class="mc" style="--card-color:var(--amber);--card-bg:var(--amber-dim)" onclick="goTab('speaking')">
+      <div class="mc-icon"><svg viewBox="0 0 16 16"><rect x="5" y="1" width="6" height="9" rx="3"/><path d="M2 8a6 6 0 0012 0M8 14v2M5 16h6"/></svg></div>
+      <div class="mc-t">口语练习</div><div class="mc-s">四级口语陪练</div><div class="mc-b">Part C</div>
+    </div>
+    <div class="mc" style="--card-color:var(--purple);--card-bg:var(--purple-dim)" onclick="goTab('daily')">
+      <div class="mc-icon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg></div>
+      <div class="mc-t">今日推荐</div><div class="mc-s">歌曲/演讲/台词</div><div class="mc-b">每日更新</div>
     </div>
   </div>
+  <div class="sec-title">今日推荐内容</div>
+  <div class="daily-card" id="home-daily-card" onclick="goTab('daily')">
+    <div class="daily-type" id="hd-type"></div>
+    <div class="daily-title" id="hd-title"></div>
+    <div class="daily-sub" id="hd-sub"></div>
+    <div class="daily-tag">点击查看详情 →</div>
   </div>
+</div></div>
 
-  <!-- WORDS -->
-  <div class="screen" id="s-words">
-  <div class="screen-pad">
-    <div class="section-title">今日单词 — 第<span id="word-index">1</span>个</div>
-    <div class="word-progress">
-      <div class="wp-track"><div class="wp-fill" id="wp-fill" style="width:0%"></div></div>
-      <div class="wp-text" id="wp-text">0 / 10</div>
+<!-- WORDS -->
+<div class="screen" id="s-words"><div class="sp">
+  <div class="sec-title">今日单词 — 第 <span id="word-index">1</span> 个</div>
+  <div class="wp-row"><div class="wp-track"><div class="wp-fill" id="wp-fill" style="width:0%"></div></div><div class="wp-txt" id="wp-txt">0/10</div></div>
+  <div id="mode-flash">
+    <div class="word-card word-hidden" id="flash-card" onclick="revealWord()">
+      <div class="w-en" id="w-en">—</div>
+      <div class="w-ph" id="w-ph">—</div>
+      <div class="w-type" id="w-type">—</div>
+      <div class="w-cn" id="w-cn">点击揭示中文</div>
+      <div class="w-ex" id="w-ex">—</div>
+      <div class="w-exc" id="w-exc">—</div>
     </div>
-
-    <!-- FLASH CARD MODE -->
-    <div id="mode-flash">
-      <div class="word-card word-hidden" id="flash-card" onclick="revealWord()">
-        <div class="word-en" id="w-en">—</div>
-        <div class="word-phonetic" id="w-ph">—</div>
-        <div class="word-type" id="w-type">—</div>
-        <div class="word-cn" id="w-cn">点击揭示</div>
-        <div class="word-example" id="w-ex">—</div>
-        <div class="word-example-cn" id="w-ex-cn">—</div>
+    <div class="pron-box">
+      <div class="pron-label">发音练习</div>
+      <div class="pron-row">
+        <button class="play-btn" id="play-btn" onclick="playAudio()">
+          <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>听标准发音
+        </button>
+        <div class="pron-hint" id="pron-hint">先听，再模仿跟读</div>
       </div>
-      <div class="btn-row" id="know-btns" style="display:none">
-        <button class="btn red" onclick="markWord(false)">不认识</button>
-        <button class="btn green" onclick="markWord(true)">认识了</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="startQuiz()">切换到测验模式</button>
-      </div>
-    </div>
-
-    <!-- QUIZ MODE -->
-    <div id="mode-quiz" style="display:none">
-      <div class="quiz-card" id="quiz-card">
-        <div class="quiz-q" id="quiz-q">—</div>
-        <div class="quiz-options" id="quiz-opts"></div>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="startFlash()">切换到闪卡模式</button>
-      </div>
-    </div>
-
-    <div id="words-done" style="display:none;text-align:center;padding:30px 0">
-      <div style="font-size:40px;margin-bottom:12px">🎉</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:6px">今日单词完成！</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">已学 10 个四级词汇</div>
-      <button class="btn blue" onclick="resetWords()">再练一遍</button>
-    </div>
-  </div>
-  </div>
-
-  <!-- GRAMMAR -->
-  <div class="screen" id="s-grammar">
-  <div class="screen-pad">
-    <div class="section-title">语法练习 — 第<span id="gram-index">1</span>题</div>
-    <div class="word-progress">
-      <div class="wp-track"><div class="wp-fill" id="gp-fill" style="width:0%"></div></div>
-      <div class="wp-text" id="gp-text">0 / 5</div>
-    </div>
-    <div id="gram-content"></div>
-    <div id="gram-done" style="display:none;text-align:center;padding:30px 0">
-      <div style="font-size:40px;margin-bottom:12px">✅</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:6px">语法练习完成！</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">答对 <span id="gram-score">0</span>/5 题</div>
-      <button class="btn blue" onclick="resetGrammar()">再练一遍</button>
-    </div>
-  </div>
-  </div>
-
-  <!-- SPEAKING -->
-  <div class="screen" id="s-speaking">
-  <div class="screen-pad">
-    <div class="exam-header">
-      <div class="examiner-av">🎓</div>
-      <div class="examiner-info">
-        <div class="examiner-name">AI 考官</div>
-        <div class="examiner-role">CET-4 口语测试</div>
-      </div>
-      <div class="part-pill" id="speak-part">Part C</div>
-    </div>
-
-    <div id="speak-parts-grid" class="module-grid" style="margin-bottom:14px">
-      <div class="module-card" style="--card-color:var(--blue);--card-bg:var(--blue-dim)" onclick="startSpeakPart('A')">
-        <div class="mc-title">Part A</div><div class="mc-sub">朗读短文</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--purple);--card-bg:var(--purple-dim)" onclick="startSpeakPart('B')">
-        <div class="mc-title">Part B</div><div class="mc-sub">复述对话</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--green);--card-bg:var(--green-dim)" onclick="startSpeakPart('C')">
-        <div class="mc-title">Part C</div><div class="mc-sub">回答问题</div>
-      </div>
-      <div class="module-card" style="--card-color:var(--amber);--card-bg:var(--amber-dim)" onclick="startSpeakPart('mock')">
-        <div class="mc-title">模拟考试</div><div class="mc-sub">完整流程</div>
+      <button class="rec-pron-btn" id="rec-pron-btn" onclick="togglePronRec()">
+        <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        点击录制我的发音
+      </button>
+      <div class="pron-fb" id="pron-fb">
+        <div class="ai-load" id="pron-thinking" style="display:none"><div class="dots"><span></span><span></span><span></span></div>AI 分析发音中...</div>
+        <div id="pron-result"></div>
       </div>
     </div>
+    <div class="btn-row" id="know-btns" style="display:none">
+      <button class="btn red" onclick="markWord(false)">不认识</button>
+      <button class="btn green" onclick="markWord(true)">认识了</button>
+    </div>
+    <div class="btn-row"><button class="btn" onclick="startQuiz()">切换测验模式</button></div>
+  </div>
+  <div id="mode-quiz" style="display:none">
+    <div class="qcard"><div class="qq" id="quiz-q">—</div><div class="qopts" id="quiz-opts"></div></div>
+    <div class="btn-row"><button class="btn" onclick="startFlash()">切换闪卡模式</button></div>
+  </div>
+  <div id="words-done" style="display:none;text-align:center;padding:30px 0">
+    <div style="font-size:40px;margin-bottom:12px">🎉</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">今日单词完成！</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">已学 10 个四级词汇</div>
+    <button class="btn blue" onclick="resetWords()">再练一遍</button>
+  </div>
+</div></div>
 
-    <div id="speak-practice" style="display:none">
-      <button class="btn" style="margin-bottom:14px;flex:none;width:auto;padding:8px 16px;font-size:13px" onclick="backToSpeakMenu()">← 返回</button>
-      <div id="loading-q" class="ai-loading" style="display:none"><div class="dots"><span></span><span></span><span></span></div>AI 出题中...</div>
-      <div class="question-box" id="speak-qbox">
-        <div class="question-en" id="speak-q-en">选择模式开始练习</div>
-        <div class="question-cn" id="speak-q-cn"></div>
+<!-- GRAMMAR -->
+<div class="screen" id="s-grammar"><div class="sp">
+  <div class="sec-title">语法练习 — 第 <span id="gram-index">1</span> 题</div>
+  <div class="wp-row"><div class="wp-track"><div class="wp-fill" id="gp-fill" style="width:0%"></div></div><div class="wp-txt" id="gp-txt">0/5</div></div>
+  <div id="gram-content"></div>
+  <div id="gram-done" style="display:none;text-align:center;padding:30px 0">
+    <div style="font-size:40px;margin-bottom:12px">✅</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">语法练习完成！</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">答对 <span id="gram-score">0</span>/5 题</div>
+    <button class="btn blue" onclick="resetGrammar()">再练一遍</button>
+  </div>
+</div></div>
+
+<!-- SPEAKING -->
+<div class="screen" id="s-speaking"><div class="sp">
+  <div class="exam-hdr">
+    <div class="ex-av">🎓</div>
+    <div class="ex-info"><div class="ex-name">AI 考官</div><div class="ex-role">CET-4 口语测试</div></div>
+    <div class="part-pill" id="speak-part">Part C</div>
+  </div>
+  <div id="speak-grid" class="grid2" style="margin-bottom:14px">
+    <div class="mc" style="--card-color:var(--blue);--card-bg:var(--blue-dim)" onclick="startSpeakPart('A')"><div class="mc-t">Part A</div><div class="mc-s">朗读短文</div></div>
+    <div class="mc" style="--card-color:var(--purple);--card-bg:var(--purple-dim)" onclick="startSpeakPart('B')"><div class="mc-t">Part B</div><div class="mc-s">复述对话</div></div>
+    <div class="mc" style="--card-color:var(--green);--card-bg:var(--green-dim)" onclick="startSpeakPart('C')"><div class="mc-t">Part C</div><div class="mc-s">回答问题</div></div>
+    <div class="mc" style="--card-color:var(--amber);--card-bg:var(--amber-dim)" onclick="startSpeakPart('mock')"><div class="mc-t">模拟考试</div><div class="mc-s">完整流程</div></div>
+  </div>
+  <div id="speak-practice" style="display:none">
+    <button class="btn" style="margin-bottom:14px;width:auto;padding:8px 16px;font-size:13px" onclick="backToSpeak()">← 返回</button>
+    <div class="qbox"><div class="qen" id="speak-q-en">选择模式开始</div><div class="qcn" id="speak-q-cn"></div></div>
+    <div class="mic-wrap">
+      <div class="timer-big" id="sp-timer">0:15</div>
+      <div class="timer-ph" id="sp-phase">准备阶段</div>
+      <div class="wave" id="sp-wave"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
+      <div class="mic-btn ready" id="sp-mic" onclick="handleMic()">
+        <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
       </div>
-      <div class="mic-wrap">
-        <div class="timer-big" id="speak-timer">0:15</div>
-        <div class="timer-phase" id="speak-phase">准备阶段</div>
-        <div class="wave" id="speak-wave"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
-        <div class="mic-btn ready" id="speak-mic" onclick="handleMic()">
-          <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
-        </div>
-        <div class="mic-hint" id="speak-hint">点击生成题目</div>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="genSpeakQ()">换一题</button>
-        <button class="btn blue" id="speak-submit" onclick="showSpeakFeedback()" disabled>查看反馈</button>
-      </div>
-      <div id="speak-feedback" style="display:none">
-        <div id="loading-fb" class="ai-loading" style="display:none"><div class="dots"><span></span><span></span><span></span></div>AI 评分中...</div>
-        <div id="fb-result"></div>
-      </div>
+      <div class="mic-hint" id="sp-hint">先点换一题生成题目</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="genQ()">换一题</button>
+      <button class="btn blue" id="sp-submit" onclick="showSpFeedback()" disabled>查看反馈</button>
+    </div>
+    <div id="sp-feedback" style="display:none">
+      <div class="ai-load" id="sp-fb-load" style="display:none"><div class="dots"><span></span><span></span><span></span></div>AI 评分中...</div>
+      <div id="sp-fb-result"></div>
     </div>
   </div>
-  </div>
+</div></div>
 
-  <!-- DAILY -->
-  <div class="screen" id="s-daily">
-  <div class="screen-pad">
-    <div class="section-title">今日推荐</div>
-    <div id="daily-cards"></div>
-  </div>
-  </div>
+<!-- DAILY -->
+<div class="screen" id="s-daily"><div class="sp">
+  <div class="sec-title">今日推荐</div>
+  <div id="daily-cards"></div>
+</div></div>
 
-  <!-- TAB BAR -->
-  <div class="tabbar">
-    <button class="tab active" id="tab-home" onclick="goTab('home')">
-      <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
-      首页
-    </button>
-    <button class="tab" id="tab-words" onclick="goTab('words')">
-      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
-      单词
-    </button>
-    <button class="tab" id="tab-grammar" onclick="goTab('grammar')">
-      <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-      语法
-    </button>
-    <button class="tab" id="tab-speaking" onclick="goTab('speaking')">
-      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
-      口语
-    </button>
-    <button class="tab" id="tab-daily" onclick="goTab('daily')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-      每日
-    </button>
-  </div>
-
-  <div class="toast" id="toast"></div>
+<div class="tabbar">
+  <button class="tab active" id="tab-home" onclick="goTab('home')"><svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>首页</button>
+  <button class="tab" id="tab-words" onclick="goTab('words')"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>单词</button>
+  <button class="tab" id="tab-grammar" onclick="goTab('grammar')"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>语法</button>
+  <button class="tab" id="tab-speaking" onclick="goTab('speaking')"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>口语</button>
+  <button class="tab" id="tab-daily" onclick="goTab('daily')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>每日</button>
 </div>
-
+<div class="toast" id="toast"></div>
+</div>
 <script>
-// ═══════════════════════════════
-//  DATA
-// ═══════════════════════════════
-const WORDS = [
-  {en:"abandon",ph:"/əˈbændən/",type:"v.",cn:"放弃；遗弃",ex:"He abandoned his plan halfway through.",exCn:"他中途放弃了他的计划。"},
-  {en:"absolute",ph:"/ˈæbsəluːt/",type:"adj.",cn:"绝对的；完全的",ex:"She had absolute confidence in her abilities.",exCn:"她对自己的能力充满绝对信心。"},
-  {en:"abstract",ph:"/ˈæbstrækt/",type:"adj.",cn:"抽象的；深奥的",ex:"The painting is very abstract.",exCn:"这幅画非常抽象。"},
-  {en:"academic",ph:"/ˌækəˈdemɪk/",type:"adj.",cn:"学术的；学业的",ex:"Her academic performance improved significantly.",exCn:"她的学业成绩明显提高了。"},
-  {en:"accelerate",ph:"/əkˈseləreɪt/",type:"v.",cn:"加速；促进",ex:"The car began to accelerate on the highway.",exCn:"汽车在高速公路上开始加速。"},
-  {en:"accomplish",ph:"/əˈkɒmplɪʃ/",type:"v.",cn:"完成；达到（目的）",ex:"She accomplished all her goals this year.",exCn:"她今年完成了所有目标。"},
-  {en:"accurate",ph:"/ˈækjərət/",type:"adj.",cn:"准确的；精确的",ex:"The weather forecast was very accurate.",exCn:"天气预报非常准确。"},
-  {en:"acknowledge",ph:"/əkˈnɒlɪdʒ/",type:"v.",cn:"承认；确认",ex:"He acknowledged his mistake openly.",exCn:"他公开承认了自己的错误。"},
-  {en:"acquire",ph:"/əˈkwaɪər/",type:"v.",cn:"获得；取得",ex:"She acquired new skills through practice.",exCn:"她通过练习获得了新技能。"},
-  {en:"adapt",ph:"/əˈdæpt/",type:"v.",cn:"适应；改编",ex:"We must adapt to the changing environment.",exCn:"我们必须适应不断变化的环境。"},
-  {en:"adequate",ph:"/ˈædɪkwət/",type:"adj.",cn:"足够的；充分的",ex:"Make sure you get adequate sleep.",exCn:"确保你获得充足的睡眠。"},
-  {en:"admire",ph:"/ədˈmaɪər/",type:"v.",cn:"钦佩；欣赏",ex:"I admire her dedication to work.",exCn:"我钦佩她对工作的奉献精神。"},
-  {en:"advocate",ph:"/ˈædvəkeɪt/",type:"v.",cn:"提倡；主张",ex:"He advocates for environmental protection.",exCn:"他倡导环境保护。"},
-  {en:"affect",ph:"/əˈfekt/",type:"v.",cn:"影响；感动",ex:"Stress can affect your health.",exCn:"压力会影响你的健康。"},
-  {en:"aggressive",ph:"/əˈɡresɪv/",type:"adj.",cn:"侵略性的；咄咄逼人的",ex:"His aggressive behavior upset everyone.",exCn:"他咄咄逼人的行为让所有人不安。"},
-  {en:"allocate",ph:"/ˈæləkeɪt/",type:"v.",cn:"分配；划拨",ex:"Resources must be allocated fairly.",exCn:"资源必须公平分配。"},
-  {en:"ambiguous",ph:"/æmˈbɪɡjuəs/",type:"adj.",cn:"模糊的；不明确的",ex:"His answer was ambiguous.",exCn:"他的回答含糊不清。"},
-  {en:"ambitious",ph:"/æmˈbɪʃəs/",type:"adj.",cn:"有雄心的；有抱负的",ex:"She is ambitious and hardworking.",exCn:"她既有雄心又勤奋。"},
-  {en:"analyze",ph:"/ˈænəlaɪz/",type:"v.",cn:"分析；解析",ex:"We need to analyze the data carefully.",exCn:"我们需要仔细分析数据。"},
-  {en:"anticipate",ph:"/ænˈtɪsɪpeɪt/",type:"v.",cn:"预期；预料",ex:"I anticipated a difficult exam.",exCn:"我预料到这次考试会很难。"},
-  {en:"apparent",ph:"/əˈpærənt/",type:"adj.",cn:"明显的；表面上的",ex:"The solution was apparent to everyone.",exCn:"解决方案对所有人来说都很明显。"},
-  {en:"appreciate",ph:"/əˈpriːʃieɪt/",type:"v.",cn:"欣赏；感激",ex:"I appreciate your help very much.",exCn:"我非常感激你的帮助。"},
-  {en:"approach",ph:"/əˈprəʊtʃ/",type:"v.",cn:"接近；处理",ex:"We should approach the problem differently.",exCn:"我们应该换一种方式处理这个问题。"},
-  {en:"appropriate",ph:"/əˈprəʊpriət/",type:"adj.",cn:"适当的；合适的",ex:"Please wear appropriate clothing.",exCn:"请穿着适当的衣服。"},
-  {en:"approximately",ph:"/əˈprɒksɪmətli/",type:"adv.",cn:"大约；近似地",ex:"It takes approximately two hours.",exCn:"大约需要两个小时。"},
-  {en:"argue",ph:"/ˈɑːɡjuː/",type:"v.",cn:"争论；主张",ex:"They argued about the best approach.",exCn:"他们争论哪种方法最好。"},
-  {en:"aspect",ph:"/ˈæspekt/",type:"n.",cn:"方面；外观",ex:"Consider every aspect of the situation.",exCn:"考虑情况的各个方面。"},
-  {en:"assess",ph:"/əˈses/",type:"v.",cn:"评估；评定",ex:"Teachers assess students regularly.",exCn:"老师定期评估学生。"},
-  {en:"assume",ph:"/əˈsjuːm/",type:"v.",cn:"假设；承担",ex:"Don't assume you know everything.",exCn:"不要以为你什么都知道。"},
-  {en:"attitude",ph:"/ˈætɪtjuːd/",type:"n.",cn:"态度；看法",ex:"A positive attitude leads to success.",exCn:"积极的态度会带来成功。"},
-  {en:"attribute",ph:"/əˈtrɪbjuːt/",type:"v.",cn:"归因于；归咎于",ex:"He attributed his success to hard work.",exCn:"他把成功归因于努力工作。"},
-  {en:"authority",ph:"/ɔːˈθɒrəti/",type:"n.",cn:"权威；当局",ex:"She spoke with great authority.",exCn:"她以极大的权威发言。"},
-  {en:"aware",ph:"/əˈweər/",type:"adj.",cn:"意识到的；知道的",ex:"Be aware of your surroundings.",exCn:"注意你的周围环境。"},
-  {en:"barrier",ph:"/ˈbæriər/",type:"n.",cn:"障碍；屏障",ex:"Language can be a barrier to communication.",exCn:"语言可能是交流的障碍。"},
-  {en:"beneficial",ph:"/ˌbenɪˈfɪʃl/",type:"adj.",cn:"有益的；有利的",ex:"Exercise is beneficial to your health.",exCn:"锻炼对你的健康有益。"},
-  {en:"capable",ph:"/ˈkeɪpəbl/",type:"adj.",cn:"有能力的；能干的",ex:"She is capable of great things.",exCn:"她能做成大事。"},
-  {en:"challenge",ph:"/ˈtʃælɪndʒ/",type:"n.",cn:"挑战；质疑",ex:"Learning English is a challenge worth taking.",exCn:"学英语是值得接受的挑战。"},
-  {en:"circumstance",ph:"/ˈsɜːkəmstæns/",type:"n.",cn:"情况；环境",ex:"Under no circumstances should you lie.",exCn:"在任何情况下都不应该撒谎。"},
-  {en:"clarify",ph:"/ˈklærɪfaɪ/",type:"v.",cn:"澄清；阐明",ex:"Please clarify your point.",exCn:"请阐明你的观点。"},
-  {en:"collaborate",ph:"/kəˈlæbəreɪt/",type:"v.",cn:"合作；协作",ex:"We collaborated on the project.",exCn:"我们在这个项目上合作。"},
-  {en:"communicate",ph:"/kəˈmjuːnɪkeɪt/",type:"v.",cn:"交流；沟通",ex:"It is important to communicate clearly.",exCn:"清晰沟通非常重要。"},
-  {en:"complex",ph:"/ˈkɒmpleks/",type:"adj.",cn:"复杂的；难懂的",ex:"The problem is more complex than I thought.",exCn:"这个问题比我想象的更复杂。"},
-  {en:"concentrate",ph:"/ˈkɒnsntreɪt/",type:"v.",cn:"集中；专注",ex:"Try to concentrate on your studies.",exCn:"尽量专注于你的学习。"},
-  {en:"confident",ph:"/ˈkɒnfɪdənt/",type:"adj.",cn:"自信的；确信的",ex:"Be confident when you speak English.",exCn:"说英语时要自信。"},
-  {en:"consequence",ph:"/ˈkɒnsɪkwəns/",type:"n.",cn:"结果；后果",ex:"Think about the consequences of your actions.",exCn:"想想你行为的后果。"},
-  {en:"considerable",ph:"/kənˈsɪdərəbl/",type:"adj.",cn:"相当大的；值得考虑的",ex:"She made considerable progress.",exCn:"她取得了相当大的进步。"},
-  {en:"consistently",ph:"/kənˈsɪstəntli/",type:"adv.",cn:"一贯地；始终如一地",ex:"She consistently achieves high scores.",exCn:"她始终如一地取得高分。"},
-  {en:"contribute",ph:"/kənˈtrɪbjuːt/",type:"v.",cn:"贡献；捐助",ex:"Everyone should contribute to society.",exCn:"每个人都应该为社会做出贡献。"},
-  {en:"controversy",ph:"/ˈkɒntrəvɜːsi/",type:"n.",cn:"争议；争论",ex:"The policy caused much controversy.",exCn:"这项政策引起了很多争议。"},
-  {en:"convenient",ph:"/kənˈviːniənt/",type:"adj.",cn:"方便的；便利的",ex:"Mobile payment is very convenient.",exCn:"移动支付非常方便。"},
+const W=[
+  {en:"abandon",ph:"/əˈbændən/",type:"v.",cn:"放弃；遗弃",ex:"He abandoned his plan halfway.",exC:"他中途放弃了计划。"},
+  {en:"absolute",ph:"/ˈæbsəluːt/",type:"adj.",cn:"绝对的；完全的",ex:"She had absolute confidence.",exC:"她充满绝对信心。"},
+  {en:"abstract",ph:"/ˈæbstrækt/",type:"adj.",cn:"抽象的；深奥的",ex:"The painting is very abstract.",exC:"这幅画非常抽象。"},
+  {en:"academic",ph:"/ˌækəˈdemɪk/",type:"adj.",cn:"学术的；学业的",ex:"Her academic performance improved.",exC:"她的学业成绩提高了。"},
+  {en:"accelerate",ph:"/əkˈseləreɪt/",type:"v.",cn:"加速；促进",ex:"The car began to accelerate.",exC:"汽车开始加速。"},
+  {en:"accomplish",ph:"/əˈkɒmplɪʃ/",type:"v.",cn:"完成；达到目的",ex:"She accomplished all her goals.",exC:"她完成了所有目标。"},
+  {en:"accurate",ph:"/ˈækjərət/",type:"adj.",cn:"准确的；精确的",ex:"The forecast was very accurate.",exC:"预报非常准确。"},
+  {en:"acknowledge",ph:"/əkˈnɒlɪdʒ/",type:"v.",cn:"承认；确认",ex:"He acknowledged his mistake.",exC:"他承认了错误。"},
+  {en:"acquire",ph:"/əˈkwaɪər/",type:"v.",cn:"获得；取得",ex:"She acquired new skills.",exC:"她获得了新技能。"},
+  {en:"adapt",ph:"/əˈdæpt/",type:"v.",cn:"适应；改编",ex:"We must adapt to change.",exC:"我们必须适应变化。"},
+  {en:"adequate",ph:"/ˈædɪkwət/",type:"adj.",cn:"足够的；充分的",ex:"Get adequate sleep daily.",exC:"每天获得充足睡眠。"},
+  {en:"admire",ph:"/ədˈmaɪər/",type:"v.",cn:"钦佩；欣赏",ex:"I admire her dedication.",exC:"我钦佩她的奉献精神。"},
+  {en:"advocate",ph:"/ˈædvəkeɪt/",type:"v.",cn:"提倡；主张",ex:"He advocates for the environment.",exC:"他倡导环保。"},
+  {en:"affect",ph:"/əˈfekt/",type:"v.",cn:"影响；感动",ex:"Stress can affect your health.",exC:"压力会影响健康。"},
+  {en:"aggressive",ph:"/əˈɡresɪv/",type:"adj.",cn:"侵略性的；咄咄逼人的",ex:"His aggressive tone upset people.",exC:"他咄咄逼人的语气让人不安。"},
+  {en:"allocate",ph:"/ˈæləkeɪt/",type:"v.",cn:"分配；划拨",ex:"Resources must be allocated fairly.",exC:"资源必须公平分配。"},
+  {en:"ambitious",ph:"/æmˈbɪʃəs/",type:"adj.",cn:"有雄心的；有抱负的",ex:"She is ambitious and hardworking.",exC:"她既有雄心又勤奋。"},
+  {en:"analyze",ph:"/ˈænəlaɪz/",type:"v.",cn:"分析；解析",ex:"Analyze the data carefully.",exC:"仔细分析数据。"},
+  {en:"anticipate",ph:"/ænˈtɪsɪpeɪt/",type:"v.",cn:"预期；预料",ex:"I anticipated a difficult exam.",exC:"我预料到了这次难考。"},
+  {en:"apparent",ph:"/əˈpærənt/",type:"adj.",cn:"明显的；表面上的",ex:"The solution was apparent.",exC:"解决方案很明显。"},
+  {en:"appreciate",ph:"/əˈpriːʃieɪt/",type:"v.",cn:"欣赏；感激",ex:"I appreciate your help.",exC:"我感激你的帮助。"},
+  {en:"appropriate",ph:"/əˈprəʊpriət/",type:"adj.",cn:"适当的；合适的",ex:"Wear appropriate clothing.",exC:"穿着适当的衣服。"},
+  {en:"argue",ph:"/ˈɑːɡjuː/",type:"v.",cn:"争论；主张",ex:"They argued about the plan.",exC:"他们争论这个计划。"},
+  {en:"aspect",ph:"/ˈæspekt/",type:"n.",cn:"方面；外观",ex:"Consider every aspect.",exC:"考虑每个方面。"},
+  {en:"assess",ph:"/əˈses/",type:"v.",cn:"评估；评定",ex:"Teachers assess students regularly.",exC:"老师定期评估学生。"},
+  {en:"assume",ph:"/əˈsjuːm/",type:"v.",cn:"假设；承担",ex:"Don't assume you know everything.",exC:"不要以为你什么都知道。"},
+  {en:"attitude",ph:"/ˈætɪtjuːd/",type:"n.",cn:"态度；看法",ex:"A positive attitude helps.",exC:"积极的态度有帮助。"},
+  {en:"authority",ph:"/ɔːˈθɒrəti/",type:"n.",cn:"权威；当局",ex:"She spoke with authority.",exC:"她权威地发言。"},
+  {en:"aware",ph:"/əˈweər/",type:"adj.",cn:"意识到的；知道的",ex:"Be aware of your surroundings.",exC:"注意你的周围环境。"},
+  {en:"barrier",ph:"/ˈbæriər/",type:"n.",cn:"障碍；屏障",ex:"Language can be a barrier.",exC:"语言可能是障碍。"},
+  {en:"beneficial",ph:"/ˌbenɪˈfɪʃl/",type:"adj.",cn:"有益的；有利的",ex:"Exercise is beneficial.",exC:"锻炼有益健康。"},
+  {en:"capable",ph:"/ˈkeɪpəbl/",type:"adj.",cn:"有能力的；能干的",ex:"She is capable of great things.",exC:"她能做成大事。"},
+  {en:"challenge",ph:"/ˈtʃælɪndʒ/",type:"n.",cn:"挑战；质疑",ex:"Learning English is a challenge.",exC:"学英语是一项挑战。"},
+  {en:"clarify",ph:"/ˈklærɪfaɪ/",type:"v.",cn:"澄清；阐明",ex:"Please clarify your point.",exC:"请阐明你的观点。"},
+  {en:"collaborate",ph:"/kəˈlæbəreɪt/",type:"v.",cn:"合作；协作",ex:"We collaborated on the project.",exC:"我们在项目上合作。"},
+  {en:"communicate",ph:"/kəˈmjuːnɪkeɪt/",type:"v.",cn:"交流；沟通",ex:"Communicate clearly.",exC:"清晰地沟通。"},
+  {en:"complex",ph:"/ˈkɒmpleks/",type:"adj.",cn:"复杂的；难懂的",ex:"The problem is complex.",exC:"这个问题很复杂。"},
+  {en:"concentrate",ph:"/ˈkɒnsntreɪt/",type:"v.",cn:"集中；专注",ex:"Concentrate on your studies.",exC:"专注于你的学习。"},
+  {en:"confident",ph:"/ˈkɒnfɪdənt/",type:"adj.",cn:"自信的；确信的",ex:"Be confident when speaking.",exC:"说话时要自信。"},
+  {en:"consequence",ph:"/ˈkɒnsɪkwəns/",type:"n.",cn:"结果；后果",ex:"Think about the consequences.",exC:"想想后果。"},
+  {en:"contribute",ph:"/kənˈtrɪbjuːt/",type:"v.",cn:"贡献；捐助",ex:"Contribute to society.",exC:"为社会做贡献。"},
+  {en:"convenient",ph:"/kənˈviːniənt/",type:"adj.",cn:"方便的；便利的",ex:"Mobile payment is convenient.",exC:"移动支付很方便。"},
+  {en:"convince",ph:"/kənˈvɪns/",type:"v.",cn:"说服；使相信",ex:"He tried to convince me.",exC:"他试图说服我。"},
+  {en:"cooperate",ph:"/kəʊˈɒpəreɪt/",type:"v.",cn:"合作；配合",ex:"We need to cooperate.",exC:"我们需要合作。"},
+  {en:"creative",ph:"/kriˈeɪtɪv/",type:"adj.",cn:"有创造力的",ex:"She has a creative mind.",exC:"她很有创意。"},
+  {en:"critical",ph:"/ˈkrɪtɪkl/",type:"adj.",cn:"关键的；批判的",ex:"This is a critical moment.",exC:"这是关键时刻。"},
+  {en:"curious",ph:"/ˈkjʊəriəs/",type:"adj.",cn:"好奇的；奇特的",ex:"Children are naturally curious.",exC:"孩子天生好奇。"},
+  {en:"decrease",ph:"/dɪˈkriːs/",type:"v.",cn:"减少；降低",ex:"The temperature will decrease.",exC:"温度将会降低。"},
+  {en:"dedicate",ph:"/ˈdedɪkeɪt/",type:"v.",cn:"致力于；献身于",ex:"She dedicated herself to helping.",exC:"她致力于帮助他人。"},
+  {en:"define",ph:"/dɪˈfaɪn/",type:"v.",cn:"定义；规定",ex:"How would you define success?",exC:"你如何定义成功？"},
 ];
-
-const GRAMMAR = [
-  {type:"填空题",color:"var(--blue)",bg:"var(--blue-dim)",
-   q:"She has been studying English __ three years.",
-   blank:"for",options:["for","since","during","from"],
-   explain:"表示一段时间用 for，表示从某个时间点开始用 since。本题后面是 'three years'（一段时间），所以用 for。"},
-  {type:"选择题",color:"var(--green)",bg:"var(--green-dim)",
-   q:"Which sentence is grammatically correct?",
-   blank:null,options:["I have went there before.","I have gone there before.","I have been there before.","I was been there before."],
-   answer:2,
-   explain:"表示'去过某地'并已返回，正确表达是 'have been to'。'have gone to' 表示去了还没回来。"},
-  {type:"改错题",color:"var(--amber)",bg:"var(--amber-dim)",
-   q:"找出错误：'He don't know the answer to the question.'",
-   blank:"doesn't",options:["don't → doesn't","know → knows","answer → answers","question → questions"],
-   explain:"第三人称单数（He/She/It）的否定形式用 doesn't，不能用 don't。"},
-  {type:"填空题",color:"var(--blue)",bg:"var(--blue-dim)",
-   q:"If I __ you, I would study harder.",
-   blank:"were",options:["am","was","were","be"],
-   explain:"虚拟语气（与现实相反的假设）中，无论主语是什么，be 动词都用 were，这是固定用法。"},
-  {type:"选择题",color:"var(--green)",bg:"var(--green-dim)",
-   q:"The book __ I borrowed from the library was very interesting.",
-   blank:null,options:["which","who","whom","whose"],
-   answer:0,
-   explain:"先行词是物（book），关系代词用 which 或 that，不能用 who/whom/whose（这些用于人）。"},
-  {type:"改错题",color:"var(--amber)",bg:"var(--amber-dim)",
-   q:"找出错误：'Despite of the rain, they continued playing.'",
-   blank:"Despite",options:["Despite of → Despite","Despite of → In spite of","rain → raining","continued → continue"],
-   explain:"Despite 后面直接跟名词，不加 of。'In spite of' 才需要 of。两者意思相同但用法不同。"},
-  {type:"填空题",color:"var(--blue)",bg:"var(--blue-dim)",
-   q:"By the time she arrived, we __ dinner.",
-   blank:"had finished",options:["finished","have finished","had finished","were finishing"],
-   explain:"'By the time + 过去式' 表示在过去某个时间之前已完成的动作，需要用过去完成时（had + 过去分词）。"},
-  {type:"选择题",color:"var(--purple)",bg:"var(--purple-dim)",
-   q:"__ you mind closing the window?",
-   blank:null,options:["Can","Could","Would","Should"],
-   answer:2,
-   explain:"'Would you mind doing sth?' 是礼貌请求的固定句型，语气比 Could 更礼貌正式。"},
-  {type:"改错题",color:"var(--amber)",bg:"var(--amber-dim)",
-   q:"找出错误：'I look forward to hear from you soon.'",
-   blank:"hearing",options:["look → am looking","forward → forwards","hear → hearing","from → of"],
-   explain:"'look forward to' 中的 to 是介词，后面必须跟名词或动名词（-ing形式），不能跟动词原形。"},
-  {type:"填空题",color:"var(--blue)",bg:"var(--blue-dim)",
-   q:"The more you practice, __ you will improve.",
-   blank:"the more",options:["more","the more","much more","the much more"],
-   explain:"'越...越...' 的英语句式是 'the + 比较级, the + 比较级'，两个 the 都不能省略。"},
+const GRAM=[
+  {type:"填空题",col:"var(--blue)",bg:"var(--blue-dim)",q:"She has been studying English __ three years.",bl:"for",opts:["for","since","during","from"],exp:"表示一段时间用 for，表示从某个时间点开始用 since。三年是一段时间所以用 for。"},
+  {type:"选择题",col:"var(--green)",bg:"var(--green-dim)",q:"Which is grammatically correct?",bl:null,opts:["I have went there before.","I have gone there before.","I have been there before.","I was been there before."],ans:2,exp:"表示'去过某地'已返回用 'have been to'，'have gone to' 表示去了还没回来。"},
+  {type:"改错题",col:"var(--amber)",bg:"var(--amber-dim)",q:"找出错误：'He don't know the answer.'",bl:"doesn't",opts:["don't → doesn't","know → knows","answer → answers","the → a"],exp:"第三人称单数（He）的否定用 doesn't，不能用 don't。"},
+  {type:"填空题",col:"var(--blue)",bg:"var(--blue-dim)",q:"If I __ you, I would study harder.",bl:"were",opts:["am","was","were","be"],exp:"虚拟语气中，无论主语是什么，be 动词都用 were，这是固定用法。"},
+  {type:"选择题",col:"var(--green)",bg:"var(--green-dim)",q:"The book __ I borrowed was very interesting.",bl:null,opts:["which","who","whom","whose"],ans:0,exp:"先行词是物（book），关系代词用 which 或 that，不能用 who/whom/whose（用于人）。"},
+  {type:"改错题",col:"var(--amber)",bg:"var(--amber-dim)",q:"找出错误：'Despite of the rain, they continued.'",bl:"Despite",opts:["Despite of → Despite","rain → raining","continued → continue","they → he"],exp:"Despite 后面直接跟名词，不加 of。'In spite of' 才需要 of。"},
+  {type:"填空题",col:"var(--blue)",bg:"var(--blue-dim)",q:"By the time she arrived, we __ dinner.",bl:"had finished",opts:["finished","have finished","had finished","were finishing"],exp:"'By the time+过去式' 表示在过去某时间之前完成的动作，用过去完成时（had+过去分词）。"},
+  {type:"选择题",col:"var(--purple)",bg:"var(--purple-dim)",q:"__ you mind closing the window?",bl:null,opts:["Can","Could","Would","Should"],ans:2,exp:"'Would you mind doing sth?' 是礼貌请求的固定句型。"},
+  {type:"改错题",col:"var(--amber)",bg:"var(--amber-dim)",q:"找出错误：'I look forward to hear from you.'",bl:"hearing",opts:["look → am looking","forward → forwards","hear → hearing","from → of"],exp:"'look forward to' 中的 to 是介词，后面必须跟动名词（-ing形式）。"},
+  {type:"填空题",col:"var(--blue)",bg:"var(--blue-dim)",q:"The more you practice, __ you will improve.",bl:"the more",opts:["more","the more","much more","the much more"],exp:"'越...越...' 英语句式是 'the+比较级, the+比较级'，两个 the 不能省略。"},
 ];
-
-const DAILY_CONTENT = [
-  {type:"流行歌曲",icon:"music",color:"var(--purple)",title:"Shape of You",artist:"Ed Sheeran",
-   why:"这首歌节奏感强，词汇简单易懂，适合练习英语语感和口语节奏，尤其是非正式表达方式。",
-   phrase:"I'm in love with the shape of you",phraseCn:"我爱上了你的样子（我对你着迷）"},
-  {type:"TED 演讲",icon:"mic",color:"var(--blue)",title:"The Power of Vulnerability",artist:"Brené Brown · TED",
-   why:"这是 TED 历史上观看量最高的演讲之一。语速适中，发音清晰，非常适合英语学习者模仿练习。",
-   phrase:"Vulnerability is the birthplace of innovation.",phraseCn:"脆弱是创新的发源地。"},
-  {type:"经典台词",icon:"film",color:"var(--amber)",title:"The Lion King",artist:"迪士尼经典电影",
-   why:"《狮子王》语言优美，句式经典，台词充满哲理，非常适合英语口语和语感培养。",
-   phrase:"Oh yes, the past can hurt.",phraseCn:"是的，过去确实会让人痛苦。"},
-  {type:"流行歌曲",icon:"music",color:"var(--purple)",title:"Someone Like You",artist:"Adele",
-   why:"Adele 发音标准清晰，这首歌情感丰富，歌词结构简单，非常适合跟唱练习情感表达。",
-   phrase:"Never mind, I'll find someone like you.",phraseCn:"没关系，我会找到另一个像你一样的人。"},
-  {type:"TED 演讲",icon:"mic",color:"var(--blue)",title:"Your Body Language May Shape Who You Are",artist:"Amy Cuddy · TED",
-   why:"探讨肢体语言与自信的关系，语速适合中级学习者，内容实用，对口语表达很有帮助。",
-   phrase:"Fake it till you become it.",phraseCn:"假装直到真正成为它。"},
-  {type:"经典台词",icon:"film",color:"var(--amber)",title:"Forrest Gump",artist:"经典电影",
-   why:"《阿甘正传》语言朴实自然，使用大量日常口语表达，是学习地道美式英语口语的绝佳材料。",
-   phrase:"Life is like a box of chocolates.",phraseCn:"生活就像一盒巧克力，你永远不知道下一颗是什么味道。"},
-  {type:"流行歌曲",icon:"music",color:"var(--purple)",title:"Counting Stars",artist:"OneRepublic",
-   why:"这首歌兼具励志内涵与流行旋律，词汇量适中，非常适合英语四级水平的学习者练习。",
-   phrase:"Everything that kills me makes me feel alive.",phraseCn:"所有让我痛苦的事都让我感到活着。"},
+const DC=[
+  {type:"流行歌曲",icon:"music",col:"var(--purple)",title:"Shape of You",artist:"Ed Sheeran",why:"节奏感强，词汇简单，适合练习英语语感和口语节奏，尤其是非正式表达方式。",phrase:"I'm in love with the shape of you",pCn:"我对你着迷（地道口语）"},
+  {type:"TED 演讲",icon:"mic",col:"var(--blue)",title:"The Power of Vulnerability",artist:"Brené Brown · TED",why:"TED 历史上观看量最高的演讲之一，语速适中，发音清晰，适合模仿练习。",phrase:"Vulnerability is the birthplace of innovation.",pCn:"脆弱是创新的发源地。"},
+  {type:"经典台词",icon:"film",col:"var(--amber)",title:"The Lion King",artist:"迪士尼经典",why:"语言优美，句式经典，台词充满哲理，适合口语和语感培养。",phrase:"Oh yes, the past can hurt.",pCn:"是的，过去确实会让人痛苦。"},
+  {type:"流行歌曲",icon:"music",col:"var(--purple)",title:"Someone Like You",artist:"Adele",why:"发音标准清晰，歌词结构简单，适合跟唱练习情感表达。",phrase:"Never mind, I'll find someone like you.",pCn:"没关系，我会找到另一个像你一样的人。"},
+  {type:"TED 演讲",icon:"mic",col:"var(--blue)",title:"Your Body Language May Shape Who You Are",artist:"Amy Cuddy · TED",why:"探讨肢体语言与自信，语速适合中级学习者，内容实用。",phrase:"Fake it till you become it.",pCn:"假装直到真正成为它。"},
+  {type:"经典台词",icon:"film",col:"var(--amber)",title:"Forrest Gump",artist:"经典电影",why:"语言朴实自然，大量日常口语表达，是学习地道美式英语的绝佳材料。",phrase:"Life is like a box of chocolates.",pCn:"生活就像一盒巧克力，你永远不知道下一颗是什么味道。"},
+  {type:"流行歌曲",icon:"music",col:"var(--purple)",title:"Counting Stars",artist:"OneRepublic",why:"励志内涵与流行旋律兼具，词汇量适中，适合四级水平学习者。",phrase:"Everything that kills me makes me feel alive.",pCn:"所有让我痛苦的事都让我感到活着。"},
 ];
-
-const SPEAK_QS = {
-  A:["Learning English requires consistent practice. Students who read English books regularly tend to develop better vocabulary and comprehension skills. It is important to expose yourself to the language every day, whether through listening, reading, or speaking.",
-     "Technology has changed the way people communicate. With smartphones and the internet, people can now stay connected with friends and family around the world. However, face-to-face communication remains an important part of human connection.",
-     "Environmental protection is one of the most important challenges facing humanity today. Climate change, pollution, and habitat destruction threaten ecosystems around the world. Every individual can contribute to protecting the environment through small daily actions."],
-  B:["A: Hey, are you free this weekend?\nB: Yeah, I think so. Why, what's up?\nA: I was thinking we could go hiking in the mountains.\nB: That sounds great! I've been wanting to get some fresh air.\nA: Perfect. Let's meet at the station at 8am Saturday.\nB: Works for me. Should I bring anything?\nA: Just wear comfortable shoes and bring some water.\n\n请用英语复述以上对话内容。",
-     "A: Excuse me, could you help me find the library?\nB: Of course! Walk straight ahead, then turn left at the traffic light.\nA: How far is it from here?\nB: About a ten-minute walk. You can't miss it — it's a big building.\nA: Thank you so much!\nB: No problem, have a great day.\n\n请用英语复述以上对话内容。"],
-  C:["What do you usually do to relax after a long day of studying?",
-     "Do you prefer studying alone or with classmates? Why?",
-     "What is the most important quality you look for in a friend?",
-     "How has technology changed the way students learn?",
-     "What do you think is the biggest challenge facing young people today?",
-     "Describe a memorable trip or experience you have had.",
-     "What are the advantages and disadvantages of living in a big city?",
-     "How important is it to learn a foreign language? Why?",
-     "What habits do you think are important for staying healthy?",
-     "If you could change one thing about your school, what would it be?"],
-  mock:["Talk about a person who has had a great influence on your life.",
-        "What do you think about the increasing use of artificial intelligence?",
-        "Describe your ideal job and explain why you would like it.",
-        "How has social media affected the way people communicate?"]
+const SQS={
+  A:["Learning English requires consistent practice. Students who read English books regularly develop better vocabulary and comprehension skills. It is important to expose yourself to the language every day.",
+     "Technology has changed the way people communicate. With smartphones and the internet, people can stay connected worldwide. However, face-to-face communication remains important.",
+     "Environmental protection is one of the most important challenges today. Climate change and pollution threaten ecosystems around the world."],
+  B:["A: Hey, are you free this weekend?\nB: Yeah. Why?\nA: I was thinking we could go hiking.\nB: That sounds great!\nA: Let's meet at 8am Saturday.\nB: Works for me. Should I bring anything?\nA: Just comfortable shoes and water.\n\n请用英语复述以上对话。"],
+  C:["What do you usually do to relax after studying?","Do you prefer studying alone or with classmates? Why?","What is the most important quality you look for in a friend?","How has technology changed the way students learn?","What do you think is the biggest challenge facing young people?","Describe a memorable experience you have had.","What are the advantages of living in a big city?","How important is it to learn a foreign language?","What habits are important for staying healthy?","If you could change one thing about your school, what would it be?"],
+  mock:["Talk about a person who has influenced your life.","What do you think about the increasing use of AI?","Describe your ideal job and explain why.","How has social media affected communication?"]
 };
 
-// ═══════════════════════════════
-//  STATE
-// ═══════════════════════════════
-let state = JSON.parse(localStorage.getItem('eng-app-state') || '{}');
-if(!state.streak) state.streak = 0;
-if(!state.weekDone === undefined) state.weekDone = [];
-if(!state.weekDone) state.weekDone = [];
-if(!state.wordsDoneToday) state.wordsDoneToday = [];
-if(!state.gramDoneToday === undefined) state.gramDoneToday = 0;
-if(!state.gramDoneToday) state.gramDoneToday = 0;
-if(!state.lastDate) state.lastDate = '';
+// STATE
+let ST=JSON.parse(localStorage.getItem('eng3')||'{}');
+if(!ST.streak)ST.streak=0;if(!ST.wDone)ST.wDone=[];if(!ST.gDone)ST.gDone=0;if(!ST.lastDate)ST.lastDate='';
+const td=new Date().toISOString().slice(0,10);
+if(ST.lastDate!==td){ST.wDone=[];ST.gDone=0;ST.lastDate=td;}
+function save(){localStorage.setItem('eng3',JSON.stringify(ST));}
 
-function saveState(){ localStorage.setItem('eng-app-state', JSON.stringify(state)); }
-
-// daily reset check
-const todayStr = new Date().toISOString().slice(0,10);
-if(state.lastDate !== todayStr){
-  state.wordsDoneToday = [];
-  state.gramDoneToday = 0;
-  state.lastDate = todayStr;
-  saveState();
-}
-
-// ═══════════════════════════════
-//  NAVIGATION
-// ═══════════════════════════════
-function goTab(tab){
+function goTab(t){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('s-'+tab).classList.add('active');
-  document.getElementById('tab-'+tab).classList.add('active');
-  if(tab==='words') initWords();
-  if(tab==='grammar') initGrammar();
-  if(tab==='daily') initDaily();
-  if(tab==='home') updateHome();
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('s-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='words')initW();if(t==='grammar')initG();if(t==='daily')initD();if(t==='home')updateHome();
 }
 
-// ═══════════════════════════════
-//  HOME
-// ═══════════════════════════════
 function updateHome(){
-  const d = new Date();
-  document.getElementById('nav-date').textContent =
-    d.getFullYear()+'.'+ String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0');
-
-  document.getElementById('streak-num').textContent = state.streak;
-  const wordsDone = state.wordsDoneToday.length;
-  const gramDone = state.gramDoneToday;
-  document.getElementById('word-badge').textContent = Math.min(wordsDone,10)+'/10';
-  document.getElementById('gram-badge').textContent = Math.min(gramDone,5)+'/5';
-
-  const allDone = wordsDone >= 10 && gramDone >= 5;
-  document.getElementById('today-badge').textContent = allDone ? '✓ 今日已完成' : '今日未打卡';
-  if(allDone) document.getElementById('today-badge').style.background='var(--green-dim)';
-
-  // week dots
-  const dots = document.getElementById('week-dots');
-  dots.innerHTML = '';
-  const days = ['一','二','三','四','五','六','日'];
-  const dow = (d.getDay()+6)%7;
-  for(let i=0;i<7;i++){
-    const div = document.createElement('div');
-    div.className = 'day-dot' + (i<dow?' done':'') + (i===dow?' today':'');
-    div.title = '周'+days[i];
-    dots.appendChild(div);
-  }
-
-  // daily preview
-  const rec = getTodayRec();
-  document.getElementById('hd-type').textContent = rec.type;
-  document.getElementById('hd-title').textContent = rec.title;
-  document.getElementById('hd-sub').textContent = rec.artist;
-  document.getElementById('hd-tag').textContent = '点击查看详情';
-  document.getElementById('home-daily-card').onclick = ()=>goTab('daily');
-}
-
-function getTodayRec(){
-  const d = new Date();
-  const idx = (d.getDate() + d.getMonth()*7) % DAILY_CONTENT.length;
-  return DAILY_CONTENT[idx];
-}
-
-// ═══════════════════════════════
-//  WORDS
-// ═══════════════════════════════
-let wordList = [], wordIdx = 0, wordMode = 'flash', revealed = false;
-let quizCurrent = null, quizAnswered = false;
-
-function getTodayWords(){
-  const d = new Date();
-  const seed = d.getDate() + d.getMonth()*31 + d.getFullYear()*365;
-  const shuffled = [...WORDS];
-  for(let i=shuffled.length-1;i>0;i--){
-    const j=(seed*9301+49297)%233280;
-    const k=Math.floor((j/233280)*(i+1));
-    [shuffled[i],shuffled[k]]=[shuffled[k],shuffled[i]];
-  }
-  return shuffled.slice(0,10);
-}
-
-function initWords(){
-  wordList = getTodayWords();
-  wordIdx = 0;
-  revealed = false;
-  document.getElementById('words-done').style.display='none';
-  document.getElementById('mode-flash').style.display='block';
-  document.getElementById('mode-quiz').style.display='none';
-  renderWord();
-}
-
-function renderWord(){
-  if(wordIdx >= wordList.length){
-    document.getElementById('mode-flash').style.display='none';
-    document.getElementById('mode-quiz').style.display='none';
-    document.getElementById('words-done').style.display='block';
-    return;
-  }
-  const w = wordList[wordIdx];
-  revealed = false;
-  document.getElementById('w-en').textContent = w.en;
-  document.getElementById('w-ph').textContent = w.ph;
-  document.getElementById('w-type').textContent = w.type;
-  document.getElementById('w-cn').textContent = w.cn;
-  document.getElementById('w-ex').textContent = w.ex;
-  document.getElementById('w-ex-cn').textContent = w.exCn;
-  document.getElementById('flash-card').classList.add('word-hidden');
-  document.getElementById('know-btns').style.display='none';
-  updateWordProgress();
-}
-
-function revealWord(){
-  if(revealed) return;
-  revealed = true;
-  document.getElementById('flash-card').classList.remove('word-hidden');
-  document.getElementById('know-btns').style.display='flex';
-}
-
-function markWord(known){
-  if(!state.wordsDoneToday.includes(wordIdx)) state.wordsDoneToday.push(wordIdx);
-  saveState();
-  wordIdx++;
-  renderWord();
-  document.getElementById('word-badge').textContent = Math.min(state.wordsDoneToday.length,10)+'/10';
-}
-
-function updateWordProgress(){
-  const pct = (wordIdx/wordList.length)*100;
-  document.getElementById('wp-fill').style.width = pct+'%';
-  document.getElementById('wp-text').textContent = wordIdx+' / '+wordList.length;
-  document.getElementById('word-index').textContent = wordIdx+1;
-}
-
-function startQuiz(){
-  document.getElementById('mode-flash').style.display='none';
-  document.getElementById('mode-quiz').style.display='block';
-  wordMode='quiz'; quizAnswered=false;
-  renderQuiz();
-}
-
-function startFlash(){
-  document.getElementById('mode-flash').style.display='block';
-  document.getElementById('mode-quiz').style.display='none';
-  wordMode='flash';
-}
-
-function renderQuiz(){
-  if(wordIdx >= wordList.length){
-    document.getElementById('mode-flash').style.display='none';
-    document.getElementById('mode-quiz').style.display='none';
-    document.getElementById('words-done').style.display='block';
-    return;
-  }
-  quizAnswered = false;
-  const w = wordList[wordIdx];
-  const correct = Math.floor(Math.random()*4);
-  // build wrong options from other words
-  const others = WORDS.filter(x=>x.en!==w.en).sort(()=>Math.random()-.5).slice(0,3).map(x=>x.cn);
-  const opts = [...others];
-  opts.splice(correct,0,w.cn);
-
-  document.getElementById('quiz-q').innerHTML = '请选择 <span class="quiz-word">'+w.en+'</span> 的正确中文意思：';
-  const container = document.getElementById('quiz-opts');
-  container.innerHTML='';
-  opts.forEach((opt,i)=>{
-    const btn = document.createElement('button');
-    btn.className='quiz-opt';
-    btn.textContent = opt;
-    btn.onclick = ()=>answerQuiz(i, correct, btn);
-    container.appendChild(btn);
-  });
-  quizCurrent = {correct, word:w};
-  updateWordProgress();
-}
-
-function answerQuiz(chosen, correct, btn){
-  if(quizAnswered) return;
-  quizAnswered = true;
-  const btns = document.querySelectorAll('.quiz-opt');
-  btns[correct].classList.add('correct');
-  if(chosen !== correct) btn.classList.add('wrong');
-  else showToast('答对了！');
-  if(!state.wordsDoneToday.includes(wordIdx)) state.wordsDoneToday.push(wordIdx);
-  saveState();
-  setTimeout(()=>{ wordIdx++; renderQuiz(); }, 1200);
-}
-
-function resetWords(){ initWords(); }
-
-// ═══════════════════════════════
-//  GRAMMAR
-// ═══════════════════════════════
-let gramList=[], gramIdx=0, gramScore=0;
-
-function getTodayGrammar(){
-  const d = new Date();
-  const idx = d.getDate() % GRAMMAR.length;
-  const result=[];
-  for(let i=0;i<5;i++) result.push(GRAMMAR[(idx+i)%GRAMMAR.length]);
-  return result;
-}
-
-function initGrammar(){
-  gramList = getTodayGrammar();
-  gramIdx=0; gramScore=0;
-  document.getElementById('gram-done').style.display='none';
-  renderGrammar();
-}
-
-function renderGrammar(){
-  if(gramIdx>=gramList.length){
-    document.getElementById('gram-content').innerHTML='';
-    document.getElementById('gram-done').style.display='block';
-    document.getElementById('gram-score').textContent=gramScore;
-    state.gramDoneToday = gramIdx;
-    saveState();
-    return;
-  }
-  const g = gramList[gramIdx];
-  document.getElementById('gram-index').textContent = gramIdx+1;
-  const pct=(gramIdx/gramList.length)*100;
-  document.getElementById('gp-fill').style.width=pct+'%';
-  document.getElementById('gp-text').textContent=gramIdx+' / '+gramList.length;
-  document.getElementById('gram-badge').textContent=Math.min(gramIdx,5)+'/5';
-
-  let html=`<div class="grammar-card">
-    <div class="grammar-type-badge" style="background:${g.bg};color:${g.color}">${g.type}</div>
-    <div class="grammar-q">${g.blank ? g.q.replace(/__/,'<span class="blank" id="blank-ans">___</span>') : g.q}</div>
-    <div class="quiz-options" id="gram-opts"></div>
-    <div class="grammar-explain" id="gram-explain"><strong>解析：</strong>${g.explain}</div>
-  </div>`;
-  document.getElementById('gram-content').innerHTML=html;
-
-  const container=document.getElementById('gram-opts');
-  g.options.forEach((opt,i)=>{
-    const btn=document.createElement('button');
-    btn.className='quiz-opt';
-    btn.textContent=opt;
-    btn.onclick=()=>answerGram(i,g,btn);
-    container.appendChild(btn);
-  });
-}
-
-function answerGram(chosen, g, btn){
-  const btns=document.querySelectorAll('#gram-opts .quiz-opt');
-  let correctIdx;
-  if(g.blank!==null){
-    correctIdx=g.options.indexOf(g.blank);
-    if(g.blank) document.getElementById('blank-ans').textContent=g.blank;
-  } else {
-    correctIdx=g.answer;
-  }
-  btns.forEach(b=>b.disabled=true);
-  btns[correctIdx].classList.add('correct');
-  if(chosen!==correctIdx) btn.classList.add('wrong');
-  else { gramScore++; showToast('正确！'); }
-  document.getElementById('gram-explain').classList.add('show');
-  setTimeout(()=>{ gramIdx++; renderGrammar(); },2000);
-}
-
-function resetGrammar(){ initGrammar(); }
-
-// ═══════════════════════════════
-//  SPEAKING
-// ═══════════════════════════════
-let currentPart='C', spTimer=null, spRec=false, spReady=false;
-let spSeconds=0, spTranscript='', spCurrentQ='', waveInt=null, recognition=null;
-
-const PART_CFG={
-  A:{label:'Part A',prep:30,speak:120},
-  B:{label:'Part B',prep:60,speak:120},
-  C:{label:'Part C',prep:15,speak:60},
-  mock:{label:'模拟',prep:15,speak:60}
-};
-
-function backToSpeakMenu(){
-  clearInterval(spTimer); clearInterval(waveInt);
-  if(recognition){try{recognition.stop();}catch(e){}}
-  stopWave();
-  document.getElementById('speak-parts-grid').style.display='grid';
-  document.getElementById('speak-practice').style.display='none';
-}
-
-function startSpeakPart(part){
-  currentPart=part; spRec=false; spReady=false; spTranscript=''; spCurrentQ='';
-  clearInterval(spTimer);
-  document.getElementById('speak-parts-grid').style.display='none';
-  document.getElementById('speak-practice').style.display='block';
-  document.getElementById('speak-part').textContent=PART_CFG[part].label;
-  document.getElementById('speak-feedback').style.display='none';
-  document.getElementById('fb-result').innerHTML='';
-  document.getElementById('speak-submit').disabled=true;
-  document.getElementById('speak-q-en').textContent='点击「换一题」生成题目';
-  document.getElementById('speak-q-cn').textContent='';
-  document.getElementById('speak-timer').textContent='0:'+String(PART_CFG[part].prep).padStart(2,'0');
-  document.getElementById('speak-phase').textContent='准备阶段';
-  document.getElementById('speak-hint').textContent='点击换一题开始';
-  setMic('ready');
-  genSpeakQ();
-}
-
-function genSpeakQ(){
-  clearInterval(spTimer); spRec=false; spReady=false; spTranscript='';
-  document.getElementById('speak-submit').disabled=true;
-  document.getElementById('speak-feedback').style.display='none';
-  setMic('ready');
-  const qs=SPEAK_QS[currentPart];
-  spCurrentQ=qs[Math.floor(Math.random()*qs.length)];
-  document.getElementById('speak-q-en').textContent=spCurrentQ;
-  document.getElementById('speak-q-cn').textContent='';
-  const cfg=PART_CFG[currentPart];
-  spSeconds=cfg.prep;
-  updateSpTimer();
-  document.getElementById('speak-phase').textContent='准备时间 — 读题';
-  document.getElementById('speak-hint').textContent='准备好后点击麦克风开始录音';
-  spTimer=setInterval(()=>{
-    spSeconds--;
-    updateSpTimer();
-    if(spSeconds<=0){clearInterval(spTimer);spReady=true;document.getElementById('speak-phase').textContent='准备完毕 — 点击录音';}
-  },1000);
-}
-
-function updateSpTimer(){
-  const m=Math.floor(spSeconds/60),s=Math.max(0,spSeconds%60);
-  document.getElementById('speak-timer').textContent=m+':'+String(s).padStart(2,'0');
-}
-
-function handleMic(){
-  if(!spCurrentQ){genSpeakQ();return;}
-  if(!spRec) startSpRec();
-  else stopSpRec(true);
-}
-
-function startSpRec(){
-  clearInterval(spTimer); spRec=true; spReady=true;
-  const cfg=PART_CFG[currentPart]; spSeconds=cfg.speak;
-  setMic('rec');
-  document.getElementById('speak-phase').textContent='录音中 — 请开始作答';
-  document.getElementById('speak-hint').textContent='点击停止录音';
-  startWave();
-  try{
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(SR){recognition=new SR();recognition.lang='en-US';recognition.continuous=true;recognition.interimResults=true;
-      recognition.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)if(e.results[i].isFinal)t+=e.results[i][0].transcript+' ';if(t)spTranscript=t.trim();};
-      recognition.start();}
-  }catch(e){}
-  spTimer=setInterval(()=>{spSeconds--;updateSpTimer();if(spSeconds<=0){clearInterval(spTimer);stopSpRec(true);}},1000);
-}
-
-function stopSpRec(finished){
-  spRec=false; clearInterval(spTimer); stopWave();
-  if(recognition){try{recognition.stop();}catch(e){} recognition=null;}
-  if(finished){
-    setMic('done');
-    document.getElementById('speak-phase').textContent='录音完成';
-    document.getElementById('speak-hint').textContent='点击「查看反馈」获取 AI 评分';
-    document.getElementById('speak-submit').disabled=false;
-  }
-}
-
-function setMic(state){
-  const btn=document.getElementById('speak-mic');
-  btn.className='mic-btn '+state;
-}
-
-function startWave(){
-  const bars=document.querySelectorAll('#speak-wave .wb');
-  waveInt=setInterval(()=>{bars.forEach(b=>{b.style.height=(4+Math.random()*22)+'px';});},120);
-}
-function stopWave(){
-  clearInterval(waveInt);
-  document.querySelectorAll('#speak-wave .wb').forEach(b=>{b.style.height='4px';});
-}
-
-async function showSpeakFeedback(){
-  document.getElementById('speak-feedback').style.display='block';
-  document.getElementById('loading-fb').style.display='flex';
-  document.getElementById('fb-result').innerHTML='';
-
-  const note=spTranscript?`The student said: "${spTranscript}"`:'(No speech detected — give encouraging placeholder feedback)';
-  const prompt=`You are a CET-4 oral English examiner. Question: "${spCurrentQ}"\n${note}\nReturn JSON only:\n{"total":<0-100>,"pronunciation":<0-100>,"fluency":<0-100>,"content":<0-100>,"grade":"<优秀/良好/中等/需加油>","positives":["<zh>","<zh>"],"improvements":["<zh>","<zh>"],"modelAnswer":"<3-5 sentences English>"}`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,
-        system:'You are a CET-4 oral exam evaluator. Always respond with valid JSON only.',
-        messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    const raw=data.content.map(b=>b.text||'').join('');
-    const fb=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    document.getElementById('loading-fb').style.display='none';
-    const col=fb.total>=80?'var(--green)':fb.total>=60?'var(--blue)':'var(--amber)';
-    let html=`<div class="feedback-box">
-      <div class="fb-score-row">
-        <div class="fb-score-big" style="color:${col}">${fb.total}</div>
-        <div class="fb-score-info"><div class="fb-grade">${fb.grade}</div><div class="fb-sub">综合评分 / 100</div></div>
-      </div>
-      <div class="bar-row"><div class="bar-label">发音</div><div class="bar-track"><div class="bar-fill" style="width:${fb.pronunciation}%"></div></div><div class="bar-val">${fb.pronunciation}</div></div>
-      <div class="bar-row"><div class="bar-label">流利度</div><div class="bar-track"><div class="bar-fill" style="width:${fb.fluency}%"></div></div><div class="bar-val">${fb.fluency}</div></div>
-      <div class="bar-row"><div class="bar-label">内容</div><div class="bar-track"><div class="bar-fill" style="width:${fb.content}%"></div></div><div class="bar-val">${fb.content}</div></div>
-    </div>
-    <div class="feedback-box"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">AI 反馈</div>`;
-    (fb.positives||[]).forEach(t=>{html+=`<div class="fb-item"><div class="fb-dot g"></div><div class="fb-body">${t}</div></div>`;});
-    (fb.improvements||[]).forEach(t=>{html+=`<div class="fb-item"><div class="fb-dot a"></div><div class="fb-body">${t}</div></div>`;});
-    html+=`</div><div class="model-box"><div class="model-label">范例答案</div><div class="model-text">${fb.modelAnswer}</div></div>`;
-    document.getElementById('fb-result').innerHTML=html;
-    // update streak
-    state.streak++;
-    saveState();
-    updateHome();
-  }catch(e){
-    document.getElementById('loading-fb').style.display='none';
-    document.getElementById('fb-result').innerHTML='<div style="font-size:13px;color:var(--red);padding:12px">AI 反馈加载失败，请检查网络。</div>';
-  }
-}
-
-// ═══════════════════════════════
-//  DAILY
-// ═══════════════════════════════
-function initDaily(){
-  const container=document.getElementById('daily-cards');
-  container.innerHTML='';
-  // show 3 items cycling from today
   const d=new Date();
-  const base=(d.getDate()+d.getMonth()*7)%DAILY_CONTENT.length;
-  for(let i=0;i<3;i++){
-    const rec=DAILY_CONTENT[(base+i)%DAILY_CONTENT.length];
-    const iconSvgs={
-      music:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><path d="M9 2v9"/><circle cx="6" cy="11" r="2"/><path d="M9 5l4-1"/></svg>',
-      mic:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><rect x="5" y="1" width="6" height="8" rx="3"/><path d="M2 8a6 6 0 0012 0"/><line x1="8" y1="14" x2="8" y2="16"/></svg>',
-      film:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M1 6h14M1 10h14M5 3v10M11 3v10"/></svg>'
-    };
-    container.innerHTML+=`<div class="daily-rec-card">
-      <div class="daily-rec-hero">
-        <div class="rec-type-row">
-          <div class="rec-type-icon" style="background:${rec.color}22;stroke:${rec.color}">${iconSvgs[rec.icon]}</div>
-          <div class="rec-type-label" style="color:${rec.color}">${rec.type}</div>
-          ${i===0?'<div style="margin-left:auto;font-size:10px;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px">今日推荐</div>':''}
-        </div>
-        <div class="rec-title">${rec.title}</div>
-        <div class="rec-artist">${rec.artist}</div>
-      </div>
-      <div class="rec-body">
-        <div class="rec-why-title">为什么推荐</div>
-        <div class="rec-why">${rec.why}</div>
-        <div class="rec-phrase">
-          <div class="rec-phrase-label">学一句</div>
-          <div class="rec-phrase-en">${rec.phrase}</div>
-          <div class="rec-phrase-cn">${rec.phraseCn}</div>
-        </div>
-      </div>
-    </div>`;
+  document.getElementById('nav-date').textContent=d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getDate().toString().padStart(2,'0');
+  document.getElementById('streak-num').textContent=ST.streak;
+  document.getElementById('word-badge').textContent=Math.min(ST.wDone.length,10)+'/10';
+  document.getElementById('gram-badge').textContent=Math.min(ST.gDone,5)+'/5';
+  const ok=ST.wDone.length>=10&&ST.gDone>=5;
+  const b=document.getElementById('today-badge');b.textContent=ok?'✓ 今日已完成':'今日未打卡';
+  if(ok)b.style.background='var(--green-dim)';
+  const dots=document.getElementById('week-dots');dots.innerHTML='';
+  const dow=(d.getDay()+6)%7;
+  for(let i=0;i<7;i++){const x=document.createElement('div');x.className='day-dot'+(i<dow?' done':'')+(i===dow?' today':'');dots.appendChild(x);}
+  const rec=DC[(d.getDate()+d.getMonth()*7)%DC.length];
+  document.getElementById('hd-type').textContent=rec.type;
+  document.getElementById('hd-title').textContent=rec.title;
+  document.getElementById('hd-sub').textContent=rec.artist;
+}
+
+// WORDS
+let wList=[],wIdx=0,revealed=false,pRec=false,pRecog=null,pTxt='';
+function getTW(){const d=new Date();const seed=d.getDate()+d.getMonth()*31;const s=[...W];for(let i=s.length-1;i>0;i--){const j=Math.floor(((seed*9301+49297)%233280/233280)*(i+1));[s[i],s[j]]=[s[j],s[i]];}return s.slice(0,10);}
+function initW(){wList=getTW();wIdx=0;revealed=false;document.getElementById('words-done').style.display='none';document.getElementById('mode-flash').style.display='block';document.getElementById('mode-quiz').style.display='none';renderW();}
+function renderW(){
+  if(wIdx>=wList.length){document.getElementById('mode-flash').style.display='none';document.getElementById('mode-quiz').style.display='none';document.getElementById('words-done').style.display='block';return;}
+  const w=wList[wIdx];revealed=false;pTxt='';
+  document.getElementById('w-en').textContent=w.en;document.getElementById('w-ph').textContent=w.ph;document.getElementById('w-type').textContent=w.type;document.getElementById('w-cn').textContent=w.cn;document.getElementById('w-ex').textContent=w.ex;document.getElementById('w-exc').textContent=w.exC;
+  document.getElementById('flash-card').classList.add('word-hidden');document.getElementById('know-btns').style.display='none';
+  const pb=document.getElementById('play-btn');pb.className='play-btn';pb.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>听标准发音';
+  document.getElementById('pron-hint').textContent='先听，再模仿跟读';
+  const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>点击录制我的发音';
+  document.getElementById('pron-fb').classList.remove('show');document.getElementById('pron-result').innerHTML='';document.getElementById('pron-thinking').style.display='none';
+  updateWP();
+}
+function revealWord(){if(revealed)return;revealed=true;document.getElementById('flash-card').classList.remove('word-hidden');document.getElementById('know-btns').style.display='flex';}
+function markWord(k){if(!ST.wDone.includes(wIdx))ST.wDone.push(wIdx);save();wIdx++;renderW();document.getElementById('word-badge').textContent=Math.min(ST.wDone.length,10)+'/10';}
+function updateWP(){const p=(wIdx/wList.length)*100;document.getElementById('wp-fill').style.width=p+'%';document.getElementById('wp-txt').textContent=wIdx+'/'+wList.length;document.getElementById('word-index').textContent=wIdx+1;}
+
+// PRONUNCIATION
+function playAudio(){
+  const w=wList[wIdx];const pb=document.getElementById('play-btn');
+  pb.className='play-btn playing';pb.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14"><rect x="4" y="3" width="3" height="10" fill="currentColor"/><rect x="9" y="3" width="3" height="10" fill="currentColor"/></svg>播放中...';
+  document.getElementById('pron-hint').textContent='注意重音位置：'+w.ph;
+  if('speechSynthesis' in window){
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(w.en);u.lang='en-US';u.rate=0.8;u.pitch=1;
+    u.onend=()=>{pb.className='play-btn';pb.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>再听一遍';document.getElementById('pron-hint').textContent='现在试着录制你的发音';};
+    window.speechSynthesis.speak(u);
+  } else {
+    setTimeout(()=>{pb.className='play-btn';pb.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>再听一遍';document.getElementById('pron-hint').textContent='（此设备不支持语音播放）';},1500);
   }
 }
 
-// ═══════════════════════════════
-//  TOAST
-// ═══════════════════════════════
-let toastTimer=null;
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+function togglePronRec(){if(!pRec)startPR();else stopPR();}
+function startPR(){
+  pRec=true;pTxt='';
+  const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn recording';
+  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>录音中... 点击停止';
+  try{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){pRecog=new SR();pRecog.lang='en-US';pRecog.continuous=false;pRecog.interimResults=false;pRecog.onresult=e=>{if(e.results[0])pTxt=e.results[0][0].transcript.trim();};pRecog.onend=()=>{if(pRec)stopPR();};pRecog.start();}}catch(e){}
+  setTimeout(()=>{if(pRec)stopPR();},8000);
+}
+function stopPR(){
+  pRec=false;if(pRecog){try{pRecog.stop();}catch(e){}pRecog=null;}
+  const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn done';
+  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>录音完成 — 分析中...';
+  analyzePron();
+}
+async function analyzePron(){
+  const w=wList[wIdx];
+  document.getElementById('pron-fb').classList.add('show');
+  document.getElementById('pron-thinking').style.display='flex';
+  document.getElementById('pron-result').innerHTML='';
+  const heard=pTxt||'(无法识别，请检查麦克风权限)';
+  const prompt=`You are an English pronunciation coach for Chinese CET-4 students.
+Target word: "${w.en}" phonetic: ${w.ph} meaning: ${w.cn}
+Speech recognition heard: "${heard}"
+Analyze and return JSON only (no markdown):
+{"score":<0-100>,"grade":"<优秀/良好/需练习>","correct":<true/false>,"issues":["<issue in Chinese if any>"],"tips":["<tip in Chinese>"],"breakdown":"<how to pronounce syllable by syllable in Chinese>"}`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,system:'You are a pronunciation coach. Respond with valid JSON only.',messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    const r=JSON.parse(data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim());
+    document.getElementById('pron-thinking').style.display='none';
+    const col=r.score>=80?'var(--green)':r.score>=60?'var(--amber)':'var(--red)';
+    let h=`<div class="pf-row"><div class="pf-score" style="color:${col}">${r.score}</div><div><div style="font-size:13px;font-weight:500">${r.grade}</div><div style="font-size:11px;color:var(--muted)">识别到：「${heard}」</div></div></div>`;
+    if(r.correct)h+=`<div class="pf-item"><div class="pf-dot g"></div><div>发音正确！AI 成功识别出这个词。</div></div>`;
+    (r.issues||[]).forEach(t=>{h+=`<div class="pf-item"><div class="pf-dot a"></div><div>${t}</div></div>`;});
+    if(r.breakdown)h+=`<div class="pf-tips"><strong>拼读方法</strong>${r.breakdown}</div>`;
+    if((r.tips||[]).length)h+=`<div class="pf-tips"><strong>改进建议</strong>${r.tips.join('<br>')}</div>`;
+    h+=`<button class="play-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="playAudio()"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>再听标准发音</button>`;
+    document.getElementById('pron-result').innerHTML=h;
+    const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>再录一次';
+  }catch(e){
+    document.getElementById('pron-thinking').style.display='none';
+    document.getElementById('pron-result').innerHTML='<div style="font-size:12px;color:var(--red)">分析失败，请检查网络后重试。</div>';
+    const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>重新录音';
+  }
 }
 
-// ═══════════════════════════════
-//  INIT
-// ═══════════════════════════════
+// QUIZ
+let qAns=false;
+function startQuiz(){document.getElementById('mode-flash').style.display='none';document.getElementById('mode-quiz').style.display='block';renderQ();}
+function startFlash(){document.getElementById('mode-flash').style.display='block';document.getElementById('mode-quiz').style.display='none';}
+function renderQ(){
+  if(wIdx>=wList.length){document.getElementById('mode-flash').style.display='none';document.getElementById('mode-quiz').style.display='none';document.getElementById('words-done').style.display='block';return;}
+  qAns=false;const w=wList[wIdx];const ci=Math.floor(Math.random()*4);
+  const ot=W.filter(x=>x.en!==w.en).sort(()=>Math.random()-.5).slice(0,3).map(x=>x.cn);
+  const opts=[...ot];opts.splice(ci,0,w.cn);
+  document.getElementById('quiz-q').innerHTML='请选择 <span class="qword">'+w.en+'</span> 的正确中文意思：';
+  const c=document.getElementById('quiz-opts');c.innerHTML='';
+  opts.forEach((o,i)=>{const b=document.createElement('button');b.className='qopt';b.textContent=o;b.onclick=()=>{if(qAns)return;qAns=true;document.querySelectorAll('.qopt').forEach((x,j)=>{if(j===ci)x.classList.add('correct');});if(i!==ci)b.classList.add('wrong');else showToast('答对了！');if(!ST.wDone.includes(wIdx))ST.wDone.push(wIdx);save();setTimeout(()=>{wIdx++;renderQ();},1200);};c.appendChild(b);});
+  updateWP();
+}
+function resetWords(){initW();}
+
+// GRAMMAR
+let gList=[],gIdx=0,gScore=0;
+function initG(){gList=getTG();gIdx=0;gScore=0;document.getElementById('gram-done').style.display='none';renderG();}
+function getTG(){const d=new Date();const i=d.getDate()%GRAM.length;const r=[];for(let j=0;j<5;j++)r.push(GRAM[(i+j)%GRAM.length]);return r;}
+function renderG(){
+  if(gIdx>=gList.length){document.getElementById('gram-content').innerHTML='';document.getElementById('gram-done').style.display='block';document.getElementById('gram-score').textContent=gScore;ST.gDone=gIdx;save();return;}
+  const g=gList[gIdx];document.getElementById('gram-index').textContent=gIdx+1;
+  document.getElementById('gp-fill').style.width=(gIdx/gList.length*100)+'%';document.getElementById('gp-txt').textContent=gIdx+'/5';document.getElementById('gram-badge').textContent=Math.min(gIdx,5)+'/5';
+  document.getElementById('gram-content').innerHTML=`<div class="gram-card"><div class="gram-badge" style="background:${g.bg};color:${g.col}">${g.type}</div><div class="gram-q">${g.bl?g.q.replace(/__/,'<span class="blank" id="bl-ans">___</span>'):g.q}</div><div class="qopts" id="gram-opts"></div><div class="gram-explain" id="gram-exp"><strong>解析：</strong>${g.exp}</div></div>`;
+  const c=document.getElementById('gram-opts');
+  g.opts.forEach((o,i)=>{const b=document.createElement('button');b.className='qopt';b.textContent=o;b.onclick=()=>{const bs=document.querySelectorAll('#gram-opts .qopt');const ci=g.bl!==null&&g.bl!==undefined?g.opts.indexOf(g.bl):g.ans;bs.forEach(x=>x.disabled=true);bs[ci].classList.add('correct');if(i!==ci)b.classList.add('wrong');else{gScore++;showToast('正确！');}if(g.bl&&document.getElementById('bl-ans'))document.getElementById('bl-ans').textContent=g.bl;document.getElementById('gram-exp').classList.add('show');setTimeout(()=>{gIdx++;renderG();},2000);};c.appendChild(b);});
+}
+function resetGrammar(){initG();}
+
+// SPEAKING
+let sPart='C',sTimer=null,sRec=false,sSecs=0,sTxt='',sQ='',wInt=null,sRecog=null;
+const PC={A:{label:'Part A',prep:30,speak:120},B:{label:'Part B',prep:60,speak:120},C:{label:'Part C',prep:15,speak:60},mock:{label:'模拟',prep:15,speak:60}};
+function backToSpeak(){clearInterval(sTimer);clearInterval(wInt);stopWave();if(sRecog){try{sRecog.stop();}catch(e){}}document.getElementById('speak-grid').style.display='grid';document.getElementById('speak-practice').style.display='none';}
+function startSpeakPart(p){sPart=p;sRec=false;sTxt='';sQ='';clearInterval(sTimer);document.getElementById('speak-grid').style.display='none';document.getElementById('speak-practice').style.display='block';document.getElementById('speak-part').textContent=PC[p].label;document.getElementById('sp-feedback').style.display='none';document.getElementById('sp-submit').disabled=true;setMic('ready');genQ();}
+function genQ(){clearInterval(sTimer);sRec=false;sTxt='';document.getElementById('sp-submit').disabled=true;document.getElementById('sp-feedback').style.display='none';setMic('ready');stopWave();const qs=SQS[sPart];sQ=qs[Math.floor(Math.random()*qs.length)];document.getElementById('speak-q-en').textContent=sQ;document.getElementById('speak-q-cn').textContent='';sSecs=PC[sPart].prep;updateST();document.getElementById('sp-phase').textContent='准备时间 — 读题';document.getElementById('sp-hint').textContent='准备好后点击麦克风开始录音';sTimer=setInterval(()=>{sSecs--;updateST();if(sSecs<=0){clearInterval(sTimer);document.getElementById('sp-phase').textContent='准备完毕 — 点击录音';}},1000);}
+function updateST(){const m=Math.floor(sSecs/60),s=Math.max(0,sSecs%60);document.getElementById('sp-timer').textContent=m+':'+s.toString().padStart(2,'0');}
+function handleMic(){if(!sQ)return;if(!sRec)startSRec();else stopSRec(true);}
+function startSRec(){clearInterval(sTimer);sRec=true;sSecs=PC[sPart].speak;setMic('rec');document.getElementById('sp-phase').textContent='录音中';document.getElementById('sp-hint').textContent='点击停止';startWave();try{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){sRecog=new SR();sRecog.lang='en-US';sRecog.continuous=true;sRecog.interimResults=true;sRecog.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)if(e.results[i].isFinal)t+=e.results[i][0].transcript+' ';if(t)sTxt=t.trim();};sRecog.start();}}catch(e){}sTimer=setInterval(()=>{sSecs--;updateST();if(sSecs<=0){clearInterval(sTimer);stopSRec(true);}},1000);}
+function stopSRec(ok){sRec=false;clearInterval(sTimer);stopWave();if(sRecog){try{sRecog.stop();}catch(e){}sRecog=null;}if(ok){setMic('done');document.getElementById('sp-phase').textContent='录音完成';document.getElementById('sp-hint').textContent='点击查看反馈';document.getElementById('sp-submit').disabled=false;}}
+function setMic(s){document.getElementById('sp-mic').className='mic-btn '+s;}
+function startWave(){const bs=document.querySelectorAll('#sp-wave .wb');wInt=setInterval(()=>{bs.forEach(b=>{b.style.height=(4+Math.random()*22)+'px';});},120);}
+function stopWave(){clearInterval(wInt);document.querySelectorAll('#sp-wave .wb').forEach(b=>{b.style.height='4px';});}
+async function showSpFeedback(){
+  document.getElementById('sp-feedback').style.display='block';document.getElementById('sp-fb-load').style.display='flex';document.getElementById('sp-fb-result').innerHTML='';
+  const note=sTxt?`Student said: "${sTxt}"`:'(No speech — give encouraging feedback)';
+  const p=`CET-4 examiner. Question: "${sQ}"\n${note}\nReturn JSON only:\n{"total":<0-100>,"pronunciation":<0-100>,"fluency":<0-100>,"content":<0-100>,"grade":"<优秀/良好/中等/需加油>","positives":["<zh>","<zh>"],"improvements":["<zh>","<zh>"],"modelAnswer":"<3-5 sentences>"}`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:'CET-4 oral evaluator. Valid JSON only.',messages:[{role:'user',content:p}]})});
+    const data=await res.json();const fb=JSON.parse(data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim());
+    document.getElementById('sp-fb-load').style.display='none';
+    const col=fb.total>=80?'var(--green)':fb.total>=60?'var(--blue)':'var(--amber)';
+    let h=`<div class="fb-box"><div class="fb-score-row"><div class="fb-score-big" style="color:${col}">${fb.total}</div><div><div class="fb-grade">${fb.grade}</div><div class="fb-sub">综合评分/100</div></div></div>
+    <div class="bar-row"><div class="bar-lbl">发音</div><div class="bar-track"><div class="bar-fill" style="width:${fb.pronunciation}%"></div></div><div class="bar-val">${fb.pronunciation}</div></div>
+    <div class="bar-row"><div class="bar-lbl">流利度</div><div class="bar-track"><div class="bar-fill" style="width:${fb.fluency}%"></div></div><div class="bar-val">${fb.fluency}</div></div>
+    <div class="bar-row"><div class="bar-lbl">内容</div><div class="bar-track"><div class="bar-fill" style="width:${fb.content}%"></div></div><div class="bar-val">${fb.content}</div></div></div>
+    <div class="fb-box"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">AI 反馈</div>`;
+    (fb.positives||[]).forEach(t=>{h+=`<div class="fb-item"><div class="fb-dot g"></div><div class="fb-body">${t}</div></div>`;});
+    (fb.improvements||[]).forEach(t=>{h+=`<div class="fb-item"><div class="fb-dot a"></div><div class="fb-body">${t}</div></div>`;});
+    h+=`</div><div class="model-box"><div class="model-lbl">范例答案</div><div class="model-txt">${fb.modelAnswer}</div></div>`;
+    document.getElementById('sp-fb-result').innerHTML=h;ST.streak++;save();updateHome();
+  }catch(e){document.getElementById('sp-fb-load').style.display='none';document.getElementById('sp-fb-result').innerHTML='<div style="font-size:13px;color:var(--red);padding:12px">加载失败，请检查网络。</div>';}
+}
+
+// DAILY
+function initD(){
+  const c=document.getElementById('daily-cards');c.innerHTML='';
+  const d=new Date();const base=(d.getDate()+d.getMonth()*7)%DC.length;
+  const ic={music:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><path d="M9 2v9"/><circle cx="6" cy="11" r="2"/><path d="M9 5l4-1"/></svg>',mic:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><rect x="5" y="1" width="6" height="8" rx="3"/><path d="M2 8a6 6 0 0012 0"/><line x1="8" y1="14" x2="8" y2="16"/></svg>',film:'<svg viewBox="0 0 16 16" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M1 6h14M1 10h14M5 3v10M11 3v10"/></svg>'};
+  for(let i=0;i<3;i++){const r=DC[(base+i)%DC.length];c.innerHTML+=`<div class="drec-card"><div class="drec-hero"><div class="rtype-row"><div class="rtype-icon" style="background:${r.col}22;stroke:${r.col}">${ic[r.icon]}</div><div class="rtype-lbl" style="color:${r.col}">${r.type}</div>${i===0?'<div style="margin-left:auto;font-size:10px;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px">今日推荐</div>':''}</div><div class="rec-title">${r.title}</div><div class="rec-artist">${r.artist}</div></div><div class="rec-body"><div class="rec-why-t">为什么推荐</div><div class="rec-why">${r.why}</div><div class="rec-phrase"><div class="rec-phrase-lbl">学一句</div><div class="rec-phrase-en">${r.phrase}</div><div class="rec-phrase-cn">${r.pCn}</div></div></div></div>`;}
+}
+
+let tT=null;
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),1800);}
+
 updateHome();
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 window.addEventListener('online',()=>showToast('网络已连接'));
 window.addEventListener('offline',()=>showToast('当前无网络'));
 </script>
