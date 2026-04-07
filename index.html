@@ -63,7 +63,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .w-cn{font-size:18px;font-weight:500;margin-bottom:8px}
 .w-ex{font-size:13px;color:var(--muted);line-height:1.7;font-style:italic;padding:10px 0;border-top:1px solid var(--border);width:100%}
 .w-exc{font-size:12px;color:var(--hint);margin-top:4px}
-.word-hidden .w-cn,.word-hidden .w-ex,.word-hidden .w-exc{filter:blur(8px);cursor:pointer}
+.word-hidden .w-ex,.word-hidden .w-exc{filter:blur(8px);cursor:pointer}
+.word-hidden .w-cn{color:var(--hint);cursor:pointer}
 .pron-box{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px}
 .pron-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
 .pron-row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
@@ -445,7 +446,7 @@ function renderW(){
   if(wIdx>=wList.length){document.getElementById('mode-flash').style.display='none';document.getElementById('mode-quiz').style.display='none';document.getElementById('words-done').style.display='block';return;}
   const w=wList[wIdx];revealed=false;pTxt='';
   document.getElementById('w-en').textContent=w.en;document.getElementById('w-ph').textContent=w.ph;document.getElementById('w-type').textContent=w.type;document.getElementById('w-cn').textContent=w.cn;document.getElementById('w-ex').textContent=w.ex;document.getElementById('w-exc').textContent=w.exC;
-  document.getElementById('flash-card').classList.add('word-hidden');document.getElementById('know-btns').style.display='none';
+  const fc=document.getElementById('flash-card');fc.className='word-card word-hidden';fc.onclick=revealWord;document.getElementById('know-btns').style.display='none';
   const pb=document.getElementById('play-btn');pb.className='play-btn';pb.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>听标准发音';
   document.getElementById('pron-hint').textContent='先听，再模仿跟读';
   const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>点击录制我的发音';
@@ -485,36 +486,67 @@ function stopPR(){
   rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>录音完成 — 分析中...';
   analyzePron();
 }
+function scorePron(heard, target) {
+  if (!heard || heard.includes('无法识别')) return {score:0, correct:false, noSpeech:true};
+  const h = heard.toLowerCase().trim().replace(/[^a-z\s]/g,'');
+  const t = target.toLowerCase().trim();
+  const words = h.split(/\s+/);
+  // exact match
+  if (words.includes(t)) return {score:95, correct:true};
+  // partial match - check if target is contained
+  if (h.includes(t)) return {score:88, correct:true};
+  // Levenshtein distance
+  function lev(a,b){const m=a.length,n=b.length;const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);for(let j=0;j<=n;j++)dp[0][j]=j;for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);return dp[m][n];}
+  const best = Math.min(...words.map(w=>lev(w,t)));
+  const maxLen = Math.max(t.length, 1);
+  const similarity = Math.max(0, 1 - best/maxLen);
+  const score = Math.round(40 + similarity * 55);
+  return {score, correct: similarity > 0.7};
+}
+
+const PRON_TIPS = {
+  default: {breakdown:"按照音节逐个发音，注意重音位置", tips:["放慢速度，一个音节一个音节地练习","对照音标，注意每个音的口型","多听原声音频，模仿语调"]},
+  hard: {breakdown:"这个词音节较多，建议拆开练习", tips:["先练习每个音节","注意重读音节要更重、更长","轻读音节发弱化的 /ə/ 音"]}
+};
+
+function getPronTips(word, ph) {
+  const syllables = ph.replace(/[/ˈˌ]/g,'').split(/(?=[aeiouəɪʊɛæɑɔʌ])/i).length;
+  return syllables > 3 ? PRON_TIPS.hard : PRON_TIPS.default;
+}
+
 async function analyzePron(){
   const w=wList[wIdx];
   document.getElementById('pron-fb').classList.add('show');
   document.getElementById('pron-thinking').style.display='flex';
   document.getElementById('pron-result').innerHTML='';
-  const heard=pTxt||'(无法识别，请检查麦克风权限)';
-  const prompt=`You are an English pronunciation coach for Chinese CET-4 students.
-Target word: "${w.en}" phonetic: ${w.ph} meaning: ${w.cn}
-Speech recognition heard: "${heard}"
-Analyze and return JSON only (no markdown):
-{"score":<0-100>,"grade":"<优秀/良好/需练习>","correct":<true/false>,"issues":["<issue in Chinese if any>"],"tips":["<tip in Chinese>"],"breakdown":"<how to pronounce syllable by syllable in Chinese>"}`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,system:'You are a pronunciation coach. Respond with valid JSON only.',messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    const r=JSON.parse(data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim());
+  const heard=pTxt||'';
+  
+  // Local scoring (works offline, no API needed)
+  setTimeout(()=>{
     document.getElementById('pron-thinking').style.display='none';
-    const col=r.score>=80?'var(--green)':r.score>=60?'var(--amber)':'var(--red)';
-    let h=`<div class="pf-row"><div class="pf-score" style="color:${col}">${r.score}</div><div><div style="font-size:13px;font-weight:500">${r.grade}</div><div style="font-size:11px;color:var(--muted)">识别到：「${heard}」</div></div></div>`;
-    if(r.correct)h+=`<div class="pf-item"><div class="pf-dot g"></div><div>发音正确！AI 成功识别出这个词。</div></div>`;
-    (r.issues||[]).forEach(t=>{h+=`<div class="pf-item"><div class="pf-dot a"></div><div>${t}</div></div>`;});
-    if(r.breakdown)h+=`<div class="pf-tips"><strong>拼读方法</strong>${r.breakdown}</div>`;
-    if((r.tips||[]).length)h+=`<div class="pf-tips"><strong>改进建议</strong>${r.tips.join('<br>')}</div>`;
+    const result = scorePron(heard, w.en);
+    const tips = getPronTips(w.en, w.ph);
+    const col = result.score>=80?'var(--green)':result.score>=60?'var(--amber)':'var(--red)';
+    const grade = result.score>=85?'优秀':result.score>=70?'良好':result.score>=50?'需练习':'继续加油';
+    
+    let h='';
+    if(result.noSpeech){
+      h=`<div style="font-size:13px;color:var(--amber);padding:8px 0">未检测到语音，请确认麦克风权限已开启，然后重新录音。</div>`;
+    } else {
+      h=`<div class="pf-row"><div class="pf-score" style="color:${col}">${result.score}</div><div><div style="font-size:13px;font-weight:500">${grade}</div><div style="font-size:11px;color:var(--muted)">识别到：「${heard||'(未识别)'}」</div></div></div>`;
+      if(result.correct){
+        h+=`<div class="pf-item"><div class="pf-dot g"></div><div>发音正确！语音识别成功识别出了这个词。</div></div>`;
+      } else {
+        h+=`<div class="pf-item"><div class="pf-dot a"></div><div>语音识别未能匹配「${w.en}」，继续练习发音准确度。</div></div>`;
+      }
+      h+=`<div class="pf-tips"><strong>拼读方法</strong>${w.ph} &nbsp;— ${tips.breakdown}</div>`;
+      h+=`<div class="pf-tips"><strong>改进建议</strong>${tips.tips.join('<br>')}</div>`;
+    }
     h+=`<button class="play-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="playAudio()"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>再听标准发音</button>`;
     document.getElementById('pron-result').innerHTML=h;
-    const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>再录一次';
-  }catch(e){
-    document.getElementById('pron-thinking').style.display='none';
-    document.getElementById('pron-result').innerHTML='<div style="font-size:12px;color:var(--red)">分析失败，请检查网络后重试。</div>';
-    const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>重新录音';
-  }
+    const rb=document.getElementById('rec-pron-btn');rb.className='rec-pron-btn';
+    rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>再录一次';
+  }, 800);
 }
 
 // QUIZ
@@ -523,7 +555,7 @@ function startQuiz(){document.getElementById('mode-flash').style.display='none';
 function startFlash(){document.getElementById('mode-flash').style.display='block';document.getElementById('mode-quiz').style.display='none';}
 function renderQ(){
   if(wIdx>=wList.length){document.getElementById('mode-flash').style.display='none';document.getElementById('mode-quiz').style.display='none';document.getElementById('words-done').style.display='block';return;}
-  qAns=false;const w=wList[wIdx];const ci=Math.floor(Math.random()*4);
+  qAns=false;if(wIdx>=wList.length){document.getElementById('mode-quiz').style.display='none';document.getElementById('words-done').style.display='block';return;}const w=wList[wIdx];const ci=Math.floor(Math.random()*4);
   const ot=W.filter(x=>x.en!==w.en).sort(()=>Math.random()-.5).slice(0,3).map(x=>x.cn);
   const opts=[...ot];opts.splice(ci,0,w.cn);
   document.getElementById('quiz-q').innerHTML='请选择 <span class="qword">'+w.en+'</span> 的正确中文意思：';
