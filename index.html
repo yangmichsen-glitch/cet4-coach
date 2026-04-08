@@ -929,45 +929,96 @@ function resetPronUI(){
 }
 
 function toggleRec(){
-  if(!recActive)startRec();else stopRec();
+  if(!recActive)startRec();else manualStop();
+}
+
+// ── called when user taps STOP ──
+function manualStop(){
+  recActive=false;
+  if(recRecog){
+    try{recRecog.stop();}catch(e){}
+    // onend will fire → triggers finishRec via the flag
+  } else {
+    // No SR available — show result directly
+    finishRec();
+  }
 }
 
 function startRec(){
   recActive=true;recTxt='';
   const rb=document.getElementById('rec-btn');
   rb.className='rec-btn listening';
-  rb.innerHTML=`<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>录音中，说完后点击停止</span><div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>`;
+  rb.innerHTML=`<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span id="rec-countdown">录音中 — 说完后点击停止</span><div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>`;
   document.getElementById('pron-status').textContent='正在录音...';
 
-  // Web Speech API
+  // countdown display
+  let secs=8;
+  const cdTimer=setInterval(()=>{
+    secs--;
+    const el=document.getElementById('rec-countdown');
+    if(el)el.textContent=secs>0?`录音中 — ${secs}s 后自动停止`:'正在处理...';
+    if(secs<=0)clearInterval(cdTimer);
+  },1000);
+
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
-    recRecog=new SR();
-    recRecog.lang='en-US';
-    recRecog.continuous=false;
-    recRecog.interimResults=false;
-    recRecog.maxAlternatives=3;
-    recRecog.onresult=e=>{
-      // pick best result
-      let best='';
-      for(let i=0;i<e.results[0].length;i++){
-        const alt=e.results[0][i].transcript.toLowerCase().trim();
-        if(!best||e.results[0][i].confidence>e.results[0][0].confidence)best=alt;
-      }
-      recTxt=best;
-    };
-    recRecog.onerror=()=>{recTxt='';};
-    recRecog.onend=()=>{
-      // auto-process when recognition ends
-      if(recActive)finishRec();
-    };
-    recRecog.start();
+    try{
+      recRecog=new SR();
+      recRecog.lang='en-US';
+      recRecog.continuous=false;
+      recRecog.interimResults=true;   // capture interim so we get something fast
+      recRecog.maxAlternatives=1;
+
+      recRecog.onresult=e=>{
+        // collect all transcripts (final + interim)
+        let finalTxt='', interimTxt='';
+        for(let i=0;i<e.results.length;i++){
+          if(e.results[i].isFinal) finalTxt+=e.results[i][0].transcript+' ';
+          else interimTxt+=e.results[i][0].transcript;
+        }
+        recTxt=(finalTxt||interimTxt).trim().toLowerCase();
+        // show live feedback
+        const el=document.getElementById('rec-countdown');
+        if(el&&recTxt)el.textContent='识别到: '+recTxt;
+      };
+
+      recRecog.onerror=e=>{
+        clearInterval(cdTimer);
+        // on iOS 'not-allowed' means mic permission denied
+        if(e.error==='not-allowed'){
+          document.getElementById('pron-status').textContent='请在设置中允许麦克风权限';
+        }
+        recActive=false;recRecog=null;
+        finishRec();
+      };
+
+      recRecog.onend=()=>{
+        clearInterval(cdTimer);
+        recRecog=null;
+        // always show result when recognition ends (whether user stopped or auto-ended)
+        finishRec();
+      };
+
+      recRecog.start();
+    }catch(err){
+      // SR not supported or permission denied — still show result
+      clearInterval(cdTimer);
+      recRecog=null;
+      setTimeout(()=>{recActive=false;finishRec();},500);
+    }
+  } else {
+    // No SR support — wait 8s then show result
+    setTimeout(()=>{if(recActive){recActive=false;finishRec();}},8000);
   }
-  // fallback timeout
-  setTimeout(()=>{if(recActive)stopRec();},8000);
+
+  // hard safety timeout — always fire after 9s no matter what
+  setTimeout(()=>{
+    if(recActive){recActive=false;if(recRecog){try{recRecog.stop();}catch(e){}}else finishRec();}
+  },9000);
 }
 
 function stopRec(){
+  // only used by resetPronUI — silently cancels without showing result
   recActive=false;
   if(recRecog){try{recRecog.stop();}catch(e){}recRecog=null;}
 }
@@ -976,12 +1027,13 @@ function finishRec(){
   recActive=false;
   const rb=document.getElementById('rec-btn');
   rb.className='rec-btn done';
-  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>分析中...</span>';
-  document.getElementById('pron-status').textContent='正在评分...';
-  setTimeout(()=>showPronResult(),400);
+  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>分析完成 — 点击再录一次</span>';
+  document.getElementById('pron-status').textContent='评分完成';
+  showPronResult();
 }
 
 function showPronResult(){
+  if(!wList||!wList[wIdx]){return;}
   const w=wList[wIdx];
   const heard=recTxt||'';
   // scoring
