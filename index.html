@@ -790,7 +790,7 @@ function renderHome(){
 // WORDS
 // ══════════════════════════
 let wList=[],wIdx=0,wMode='flash',wKnown=0,wUnknown=0;
-let recActive=false,recRecog=null,recTxt='';
+// recording state managed by pronState machine below
 let quizAnswered=false;
 
 function getTodayWords(){
@@ -917,180 +917,249 @@ function playAudio(e){
 }
 
 // ── PRONUNCIATION ──
+// STATE: 0=idle  1=recording  2=done
+let pronState = 0;
+let SR_instance = null;
+let recTxt = '';
+let finishGuard = false; // prevent double-fire
+
 function resetPronUI(){
-  stopRec();
-  recTxt='';
-  document.getElementById('pron-status').textContent='先听发音，再跟读';
-  const rb=document.getElementById('rec-btn');
-  rb.className='rec-btn';
-  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>点击开始录音</span>';
-  document.getElementById('pron-result').className='pron-result';
-  document.getElementById('pron-result').innerHTML='';
+  pronState = 0;
+  finishGuard = false;
+  recTxt = '';
+  if(SR_instance){try{SR_instance.abort();}catch(e){} SR_instance=null;}
+  _setPronBtn('idle');
+  document.getElementById('pron-status').textContent = '先听发音，再跟读';
+  document.getElementById('pron-result').className = 'pron-result';
+  document.getElementById('pron-result').innerHTML = '';
 }
 
+function _setPronBtn(state){
+  const btn = document.getElementById('rec-btn');
+  if(!btn) return;
+  // Remove all state classes
+  btn.className = 'rec-btn' + (state==='recording'?' listening':state==='done'?' done':'');
+  // Update text span only — keep SVG intact by rebuilding full innerHTML
+  const svgMic = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+  const ripple = '<div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>';
+  if(state==='idle'){
+    btn.innerHTML = svgMic + '<span id="rec-lbl">点击开始录音</span>';
+  } else if(state==='recording'){
+    btn.innerHTML = svgMic + '<span id="rec-lbl">录音中… 再点一次停止</span>' + ripple;
+  } else if(state==='processing'){
+    btn.innerHTML = svgMic + '<span id="rec-lbl">处理中…</span>';
+  } else if(state==='done'){
+    btn.innerHTML = svgMic + '<span id="rec-lbl">点击重新录音</span>';
+  }
+}
+
+// MAIN ENTRY — called directly by onclick
 function toggleRec(){
-  if(!recActive)startRec();else manualStop();
+  if(pronState === 0) _startRec();
+  else if(pronState === 1) _stopRec();
+  // state 2 (done) → restart
+  else { resetPronUI(); }
 }
 
-// ── called when user taps STOP ──
-function manualStop(){
-  recActive=false;
-  if(recRecog){
-    try{recRecog.stop();}catch(e){}
-    // onend will fire → triggers finishRec via the flag
-  } else {
-    // No SR available — show result directly
-    finishRec();
+function _startRec(){
+  pronState = 1;
+  finishGuard = false;
+  recTxt = '';
+  _setPronBtn('recording');
+  document.getElementById('pron-status').textContent = '正在录音，请说出单词';
+
+  const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if(!SRClass){
+    // No API — simulate after 3s
+    document.getElementById('pron-status').textContent = '此设备不支持语音识别，将给出基础评分';
+    setTimeout(()=>{ pronState=0; _doFinish(); }, 3000);
+    return;
+  }
+
+  try{
+    SR_instance = new SRClass();
+    SR_instance.lang = 'en-US';
+    SR_instance.continuous = false;
+    SR_instance.interimResults = true;
+    SR_instance.maxAlternatives = 1;
+
+    SR_instance.onstart = () => {
+      document.getElementById('pron-status').textContent = '🎙 正在录音…';
+    };
+
+    SR_instance.onresult = (e) => {
+      let txt = '';
+      for(let i = 0; i < e.results.length; i++){
+        txt += e.results[i][0].transcript;
+      }
+      recTxt = txt.trim().toLowerCase();
+      const lbl = document.getElementById('rec-lbl');
+      if(lbl) lbl.textContent = '听到: ' + recTxt;
+    };
+
+    SR_instance.onerror = (e) => {
+      SR_instance = null;
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        document.getElementById('pron-status').textContent = '⚠ 请在手机设置中允许麦克风权限';
+        pronState = 0; _setPronBtn('idle'); return;
+      }
+      // other errors — still show result
+      pronState = 0; _doFinish();
+    };
+
+    SR_instance.onend = () => {
+      SR_instance = null;
+      if(pronState === 1){
+        // recognition ended naturally (user stopped speaking)
+        pronState = 0; _doFinish();
+      }
+      // if pronState already 0 (user tapped stop), _doFinish already called
+    };
+
+    SR_instance.start();
+
+    // Auto-stop after 7s
+    setTimeout(()=>{
+      if(pronState === 1){
+        _stopRec();
+      }
+    }, 7000);
+
+  } catch(err){
+    SR_instance = null;
+    pronState = 0;
+    document.getElementById('pron-status').textContent = '录音启动失败，请检查浏览器权限';
+    _setPronBtn('idle');
   }
 }
 
-function startRec(){
-  recActive=true;recTxt='';
-  const rb=document.getElementById('rec-btn');
-  rb.className='rec-btn listening';
-  rb.innerHTML=`<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span id="rec-countdown">录音中 — 说完后点击停止</span><div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>`;
-  document.getElementById('pron-status').textContent='正在录音...';
-
-  // countdown display
-  let secs=8;
-  const cdTimer=setInterval(()=>{
-    secs--;
-    const el=document.getElementById('rec-countdown');
-    if(el)el.textContent=secs>0?`录音中 — ${secs}s 后自动停止`:'正在处理...';
-    if(secs<=0)clearInterval(cdTimer);
-  },1000);
-
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(SR){
-    try{
-      recRecog=new SR();
-      recRecog.lang='en-US';
-      recRecog.continuous=false;
-      recRecog.interimResults=true;   // capture interim so we get something fast
-      recRecog.maxAlternatives=1;
-
-      recRecog.onresult=e=>{
-        // collect all transcripts (final + interim)
-        let finalTxt='', interimTxt='';
-        for(let i=0;i<e.results.length;i++){
-          if(e.results[i].isFinal) finalTxt+=e.results[i][0].transcript+' ';
-          else interimTxt+=e.results[i][0].transcript;
-        }
-        recTxt=(finalTxt||interimTxt).trim().toLowerCase();
-        // show live feedback
-        const el=document.getElementById('rec-countdown');
-        if(el&&recTxt)el.textContent='识别到: '+recTxt;
-      };
-
-      recRecog.onerror=e=>{
-        clearInterval(cdTimer);
-        // on iOS 'not-allowed' means mic permission denied
-        if(e.error==='not-allowed'){
-          document.getElementById('pron-status').textContent='请在设置中允许麦克风权限';
-        }
-        recActive=false;recRecog=null;
-        finishRec();
-      };
-
-      recRecog.onend=()=>{
-        clearInterval(cdTimer);
-        recRecog=null;
-        // always show result when recognition ends (whether user stopped or auto-ended)
-        finishRec();
-      };
-
-      recRecog.start();
-    }catch(err){
-      // SR not supported or permission denied — still show result
-      clearInterval(cdTimer);
-      recRecog=null;
-      setTimeout(()=>{recActive=false;finishRec();},500);
-    }
+function _stopRec(){
+  if(pronState !== 1) return;
+  pronState = 0;
+  _setPronBtn('processing');
+  document.getElementById('pron-status').textContent = '处理中…';
+  if(SR_instance){
+    try{ SR_instance.stop(); }catch(e){}
+    // onend will fire → _doFinish
   } else {
-    // No SR support — wait 8s then show result
-    setTimeout(()=>{if(recActive){recActive=false;finishRec();}},8000);
+    _doFinish();
   }
-
-  // hard safety timeout — always fire after 9s no matter what
-  setTimeout(()=>{
-    if(recActive){recActive=false;if(recRecog){try{recRecog.stop();}catch(e){}}else finishRec();}
-  },9000);
 }
 
-function stopRec(){
-  // only used by resetPronUI — silently cancels without showing result
-  recActive=false;
-  if(recRecog){try{recRecog.stop();}catch(e){}recRecog=null;}
+function _doFinish(){
+  if(finishGuard) return; // prevent double execution
+  finishGuard = true;
+  pronState = 2;
+  _setPronBtn('done');
+  _showPronScore();
 }
 
-function finishRec(){
-  recActive=false;
-  const rb=document.getElementById('rec-btn');
-  rb.className='rec-btn done';
-  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>分析完成 — 点击再录一次</span>';
-  document.getElementById('pron-status').textContent='评分完成';
-  showPronResult();
-}
+function _showPronScore(){
+  if(!wList || !wList[wIdx]) return;
+  const w = wList[wIdx];
+  const heard = recTxt || '';
 
-function showPronResult(){
-  if(!wList||!wList[wIdx]){return;}
-  const w=wList[wIdx];
-  const heard=recTxt||'';
-  // scoring
-  function lev(a,b){
-    const m=a.length,n=b.length;
-    const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>j===0?i:j));
-    for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
-      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  // Levenshtein similarity
+  function lev(a, b){
+    const m=a.length, n=b.length;
+    const dp = Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
     return dp[m][n];
   }
-  const target=w.en.toLowerCase();
-  const words=(heard||'').toLowerCase().split(/\s+/).filter(Boolean);
-  let score=0,correct=false;
-  if(!heard){score=0;}
-  else{
-    const best=words.length?Math.min(...words.map(x=>lev(x,target))):target.length;
-    const sim=Math.max(0,1-best/Math.max(target.length,1));
-    correct=sim>0.75||words.includes(target);
-    score=correct?Math.round(80+sim*18):Math.round(30+sim*45);
-    score=Math.min(100,score);
-  }
-  const grade=score>=90?'优秀':score>=75?'良好':score>=55?'继续练习':'再试一次';
-  const col=score>=80?'var(--success)':score>=60?'var(--warn)':'var(--rose)';
-  const rb=document.getElementById('rec-btn');
-  rb.className='rec-btn';
-  rb.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>再录一次</span>';
-  document.getElementById('pron-status').textContent=correct?'识别成功！':'未能完全匹配，继续练习';
 
-  const ph=w.ph;
-  const syllableGuide=getSyllableGuide(w.en,ph);
-  let html='';
+  const target = w.en.toLowerCase();
+  const heardWords = heard.split(/\s+/).filter(Boolean);
+  let score = 0, correct = false, matchedWord = '';
+
   if(!heard){
-    html=`<div style="color:var(--warn);font-size:13px;padding:6px 0">未检测到语音，请确认麦克风权限已开启</div>`;
+    score = 0;
   } else {
-    html=`<div class="score-badge"><span class="score-big" style="color:${col}">${score}</span><span class="score-max">/100</span><span class="score-grade" style="background:${col}22;color:${col}">${grade}</span></div>`;
-    html+=`<div class="pron-detail">识别到：「<strong style="color:var(--txt)">${heard}</strong>」${correct?' ✓ 匹配成功':' — 与目标词有差距'}</div>`;
-    html+=`<div class="pron-tip"><strong>拼读方法</strong>${syllableGuide}</div>`;
-    if(!correct)html+=`<div class="pron-tip" style="margin-top:6px"><strong>改进建议</strong>放慢速度，对照音标 <code style="font-family:var(--code);color:var(--gold)">${ph}</code> 逐音节练习，多听几遍再跟读</div>`;
+    // find best matching word in heard text
+    let bestDist = target.length;
+    for(const hw of heardWords){
+      const d = lev(hw, target);
+      if(d < bestDist){ bestDist=d; matchedWord=hw; }
+    }
+    // also check if target is substring
+    if(heard.includes(target)){ bestDist=0; matchedWord=target; }
+    const sim = Math.max(0, 1 - bestDist / Math.max(target.length,1));
+    correct = sim >= 0.75;
+    score = correct ? Math.min(100, Math.round(78 + sim*22)) : Math.round(20 + sim*55);
   }
-  const res=document.getElementById('pron-result');
-  res.innerHTML=html;res.className='pron-result show';
+
+  const grade = score>=90?'优秀 🌟':score>=75?'良好 👍':score>=55?'继续练习':' 再试一次';
+  const col = score>=80?'var(--success)':score>=60?'var(--warn)':'var(--rose)';
+
+  document.getElementById('pron-status').textContent = correct ? '✓ 识别成功！' : heard ? '未完全匹配，继续加油' : '未检测到声音';
+
+  const guide = getSyllableGuide(w.en, w.ph);
+  let html = '';
+
+  if(!heard){
+    html = `<div style="padding:10px 0;color:var(--warn);font-size:13px;line-height:1.7">
+      未检测到语音。请确认：<br>
+      1. 手机已允许麦克风权限<br>
+      2. 使用 Safari 浏览器（iOS）<br>
+      3. 说话时距麦克风近一点
+    </div>`;
+  } else {
+    html = `
+      <div class="score-badge">
+        <span class="score-big" style="color:${col}">${score}</span>
+        <span class="score-max">/100</span>
+        <span class="score-grade" style="background:${col}22;color:${col}">${grade}</span>
+      </div>
+      <div class="pron-detail">
+        识别到：「<strong style="color:var(--txt)">${heard}</strong>」
+        ${correct ? ' <span style="color:var(--success)">✓ 匹配</span>' : ''}
+      </div>`;
+    html += `<div class="pron-tip"><strong>拼读方法</strong>${guide}</div>`;
+    if(!correct){
+      html += `<div class="pron-tip" style="margin-top:6px">
+        <strong>改进建议</strong>
+        对照音标 <code style="font-family:var(--code);color:var(--gold);font-size:13px">${w.ph}</code> 再听一遍，放慢速度跟读
+      </div>`;
+    }
+  }
+
+  const res = document.getElementById('pron-result');
+  res.innerHTML = html;
+  res.className = 'pron-result show';
 }
 
-function getSyllableGuide(word,ph){
-  const guides={
-    abandon:"a-<strong>ban</strong>-don（重音在第二音节）",
-    absolute:"<strong>ab</strong>-so-lute（重音在第一音节）",
-    academic:"a-ca-<strong>dem</strong>-ic（重音在第三音节）",
-    accelerate:"ac-<strong>cel</strong>-er-ate（重音在第二音节）",
-    accomplish:"ac-<strong>com</strong>-plish（重音在第二音节）",
-    concentrate:"<strong>con</strong>-cen-trate（重音在第一音节）",
-    communicate:"com-<strong>mu</strong>-ni-cate（重音在第二音节）",
-    anticipate:"an-<strong>tic</strong>-i-pate（重音在第二音节）",
-    appreciate:"ap-<strong>pre</strong>-ci-ate（重音在第二音节）",
-    appropriate:"ap-<strong>pro</strong>-pri-ate（重音在第二音节）",
+function getSyllableGuide(word, ph){
+  const map = {
+    abandon:"a-<b>ban</b>-don（重音第二音节）",
+    absolute:"<b>ab</b>-so-lute（重音第一音节）",
+    abstract:"<b>ab</b>-stract（重音第一音节）",
+    academic:"a-ca-<b>dem</b>-ic（重音第三音节）",
+    accelerate:"ac-<b>cel</b>-er-ate（重音第二音节）",
+    accomplish:"ac-<b>com</b>-plish（重音第二音节）",
+    accurate:"<b>ac</b>-cu-rate（重音第一音节）",
+    acknowledge:"ac-<b>knowl</b>-edge（重音第二音节）",
+    acquire:"ac-<b>quire</b>（重音第二音节）",
+    adapt:"a-<b>dapt</b>（重音第二音节）",
+    adequate:"<b>ad</b>-e-quate（重音第一音节）",
+    admire:"ad-<b>mire</b>（重音第二音节）",
+    advocate:"<b>ad</b>-vo-cate（重音第一音节）",
+    affect:"af-<b>fect</b>（重音第二音节）",
+    aggressive:"ag-<b>gres</b>-sive（重音第二音节）",
+    ambitious:"am-<b>bi</b>-tious（重音第二音节）",
+    analyze:"<b>an</b>-a-lyze（重音第一音节）",
+    anticipate:"an-<b>tic</b>-i-pate（重音第二音节）",
+    apparent:"ap-<b>par</b>-ent（重音第二音节）",
+    appreciate:"ap-<b>pre</b>-ci-ate（重音第二音节）",
+    appropriate:"ap-<b>pro</b>-pri-ate（重音第二音节）",
+    concentrate:"<b>con</b>-cen-trate（重音第一音节）",
+    communicate:"com-<b>mu</b>-ni-cate（重音第二音节）",
+    collaborate:"col-<b>lab</b>-o-rate（重音第二音节）",
+    confident:"<b>con</b>-fi-dent（重音第一音节）",
+    consequence:"<b>con</b>-se-quence（重音第一音节）",
   };
-  return guides[word]||`按音标 <code style="font-family:var(--code);color:var(--gold)">${ph}</code> 逐音节发音，注意 ˈ 后面是重音`;
+  return map[word] || `按音标 <code style="font-family:var(--code);color:var(--gold)">${ph}</code> 逐音节发音`;
 }
 
 // ── QUIZ ──
