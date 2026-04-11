@@ -917,21 +917,22 @@ function playAudio(e){
 }
 
 // ── PRONUNCIATION ──
-// Strategy: getUserMedia → AudioContext → Float32Array PCM → WAV blob → base64 → Claude
+// Flow: getUserMedia → SpeechRecognition transcript → Claude AI evaluates pronunciation
 let pronState = 0; // 0=idle 1=recording 2=processing 3=done
-let _audioCtx = null;
-let _mediaStream = null;
-let _scriptNode = null;
-let _sourceNode = null;
-let _pcmChunks = [];
+let _sr = null;
+let _srFinal = '';
+let _srInterim = '';
 let _recSecs = 0;
 let _recTimer = null;
+let _autoStopTimer = null;
+let _stream = null;
 
 function resetPronUI(){
-  _stopCapture();
   pronState = 0;
-  _pcmChunks = [];
-  clearInterval(_recTimer); _recSecs = 0;
+  _srFinal = ''; _srInterim = '';
+  clearInterval(_recTimer); clearTimeout(_autoStopTimer); _recSecs = 0;
+  if(_sr){ try{ _sr.abort(); }catch(e){} _sr = null; }
+  if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream = null; }
   _setPronBtn('idle');
   document.getElementById('pron-status').textContent = '先听发音，再跟读';
   const r = document.getElementById('pron-result');
@@ -943,206 +944,240 @@ function _setPronBtn(state){
   if(!btn) return;
   const mic = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
   const rip = '<div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>';
-  const states = {
-    idle: ['rec-btn', mic+'<span id="rec-lbl">点击开始录音</span>'],
-    recording: ['rec-btn listening', mic+'<span id="rec-lbl">录音中 0s… 再点停止</span>'+rip],
-    processing: ['rec-btn', mic+'<span id="rec-lbl">AI 评分中…</span>'],
-    done: ['rec-btn done', mic+'<span id="rec-lbl">点击重新录音</span>'],
+  const s = {
+    idle:       ['rec-btn',          mic+'<span id="rec-lbl">点击开始录音</span>'],
+    recording:  ['rec-btn listening',mic+'<span id="rec-lbl">录音中… 再点停止</span>'+rip],
+    processing: ['rec-btn',          mic+'<span id="rec-lbl">AI 评分中…</span>'],
+    done:       ['rec-btn done',     mic+'<span id="rec-lbl">点击重新录音</span>'],
   };
-  const [cls, html] = states[state] || states.idle;
+  const [cls,html] = s[state]||s.idle;
   btn.className = cls; btn.innerHTML = html;
 }
 
 function toggleRec(){
-  if(pronState===0) _startCapture();
-  else if(pronState===1) _stopAndScore();
-  else { resetPronUI(); }
+  if(pronState===0) _startRec();
+  else if(pronState===1) _stopRec();
+  else resetPronUI();
 }
 
-async function _startCapture(){
+async function _startRec(){
   pronState = 1;
-  _pcmChunks = [];
-  _setPronBtn('recording');
-  document.getElementById('pron-status').textContent = '请求麦克风…';
+  _srFinal = ''; _srInterim = '';
+  _recSecs = 0;
 
+  // Step 1: getUserMedia to trigger Safari permission popup
   try{
-    // Request mic — this triggers the Safari permission popup
-    _mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
-    });
-
-    document.getElementById('pron-status').textContent = '🎙 录音中，说出单词后点停止';
-
-    // Use AudioContext to capture raw PCM
-    _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    _sourceNode = _audioCtx.createMediaStreamSource(_mediaStream);
-
-    // ScriptProcessor to collect PCM samples
-    _scriptNode = _audioCtx.createScriptProcessor(4096, 1, 1);
-    _scriptNode.onaudioprocess = (e) => {
-      const samples = e.inputBuffer.getChannelData(0);
-      _pcmChunks.push(new Float32Array(samples));
-    };
-    _sourceNode.connect(_scriptNode);
-    _scriptNode.connect(_audioCtx.destination);
-
-    // Countdown
-    _recSecs = 0;
-    _recTimer = setInterval(()=>{
-      _recSecs++;
-      const lbl = document.getElementById('rec-lbl');
-      if(lbl) lbl.textContent = `录音中 ${_recSecs}s… 再点停止`;
-      if(_recSecs >= 8) _stopAndScore();
-    }, 1000);
-
-  } catch(err){
-    pronState = 0;
-    _setPronBtn('idle');
+    _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e){
+    pronState = 0; _setPronBtn('idle');
     document.getElementById('pron-status').textContent = '⚠ 麦克风未授权';
     document.getElementById('pron-result').className = 'pron-result show';
     document.getElementById('pron-result').innerHTML = `
-      <div style="color:var(--warn);font-size:13px;line-height:1.9;padding:4px 0">
-        Safari 需要麦克风权限。请：<br>
-        <b style="color:var(--txt)">① 手机设置 → 隐私与安全性 → 麦克风 → Safari 开启</b><br>
-        <b style="color:var(--txt)">② 设置 → Safari → 麦克风 → 允许</b><br>
-        两处都开启后，刷新此页面再试。
-      </div>`;
-  }
-}
-
-function _stopCapture(){
-  clearInterval(_recTimer);
-  if(_scriptNode){ try{ _scriptNode.disconnect(); }catch(e){} _scriptNode=null; }
-  if(_sourceNode){ try{ _sourceNode.disconnect(); }catch(e){} _sourceNode=null; }
-  if(_audioCtx){ try{ _audioCtx.close(); }catch(e){} _audioCtx=null; }
-  if(_mediaStream){ _mediaStream.getTracks().forEach(t=>t.stop()); _mediaStream=null; }
-}
-
-function _stopAndScore(){
-  if(pronState!==1) return;
-  pronState = 2;
-  clearInterval(_recTimer);
-  _setPronBtn('processing');
-  document.getElementById('pron-status').textContent = 'AI 正在评分…';
-  _stopCapture();
-
-  // Merge all PCM chunks
-  const totalLen = _pcmChunks.reduce((s,c)=>s+c.length, 0);
-  if(totalLen < 3200){ // less than 0.2s of audio
-    pronState = 3; _setPronBtn('done');
-    document.getElementById('pron-status').textContent = '未检测到声音';
-    document.getElementById('pron-result').className = 'pron-result show';
-    document.getElementById('pron-result').innerHTML = `
-      <div style="color:var(--warn);font-size:13px;line-height:1.8">
-        录音太短或无声音（${_recSecs}s）。<br>请靠近麦克风，大声说出单词。
+      <div style="color:var(--warn);font-size:13px;line-height:1.9">
+        请开启麦克风权限：<br>
+        <b style="color:var(--txt)">设置 → 隐私与安全性 → 麦克风 → Safari → 开启</b><br>
+        <b style="color:var(--txt)">设置 → Safari → 麦克风 → 允许</b><br>
+        开启后刷新页面重试。
       </div>`;
     return;
   }
 
-  const merged = new Float32Array(totalLen);
-  let offset = 0;
-  _pcmChunks.forEach(c=>{ merged.set(c,offset); offset+=c.length; });
+  _setPronBtn('recording');
+  document.getElementById('pron-status').textContent = '🎙 录音中，请大声说出单词';
 
-  // Convert PCM float32 → WAV blob
-  const wav = _pcmToWav(merged, 16000);
-  const blob = new Blob([wav], {type:'audio/wav'});
+  // Step 2: Start SpeechRecognition for transcript
+  const SRC = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SRC){
+    try{
+      _sr = new SRC();
+      _sr.lang = 'en-US';
+      _sr.continuous = true;
+      _sr.interimResults = true;
+      _sr.maxAlternatives = 3;
 
-  // Convert to base64 and send to Claude
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    const b64 = reader.result.split(',')[1];
-    _callClaudeWithAudio(b64, blob.type);
-  };
-  reader.readAsDataURL(blob);
-}
+      _sr.onresult = (e) => {
+        _srFinal = ''; _srInterim = '';
+        for(let i=0; i<e.results.length; i++){
+          if(e.results[i].isFinal){
+            // pick highest confidence alternative
+            let best = e.results[i][0].transcript;
+            for(let j=1; j<e.results[i].length; j++){
+              if(e.results[i][j].confidence > e.results[i][0].confidence)
+                best = e.results[i][j].transcript;
+            }
+            _srFinal += best + ' ';
+          } else {
+            _srInterim += e.results[i][0].transcript;
+          }
+        }
+        const heard = (_srFinal || _srInterim).trim();
+        const lbl = document.getElementById('rec-lbl');
+        if(lbl && heard) lbl.textContent = '听到: ' + heard;
+        document.getElementById('pron-status').textContent = heard ? '识别中: '+heard : '🎙 录音中，请大声说出单词';
+      };
 
-function _pcmToWav(samples, sampleRate){
-  const buf = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buf);
-  const write = (o,s) => { for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
-  write(0,'RIFF'); view.setUint32(4, 36+samples.length*2, true);
-  write(8,'WAVE'); write(12,'fmt ');
-  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
-  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
-  view.setUint16(32,2,true); view.setUint16(34,16,true);
-  write(36,'data'); view.setUint32(40,samples.length*2,true);
-  let off=44;
-  for(let i=0;i<samples.length;i++){
-    const s = Math.max(-1,Math.min(1,samples[i]));
-    view.setInt16(off, s<0?s*0x8000:s*0x7FFF, true); off+=2;
+      _sr.onerror = (e) => {
+        if(e.error === 'no-speech') return; // ignore no-speech, keep recording
+        _sr = null;
+      };
+
+      _sr.onend = () => {
+        // SR ended naturally — if still recording, restart it
+        if(pronState === 1 && _sr){
+          try{ _sr.start(); }catch(ex){}
+        }
+      };
+
+      _sr.start();
+    } catch(ex){ _sr = null; }
   }
-  return buf;
+
+  // Step 3: countdown + auto stop at 7s
+  _recTimer = setInterval(()=>{
+    _recSecs++;
+    const lbl = document.getElementById('rec-lbl');
+    const heard = (_srFinal||_srInterim).trim();
+    if(lbl && !heard) lbl.textContent = `录音中 ${_recSecs}s… 再点停止`;
+  }, 1000);
+
+  _autoStopTimer = setTimeout(()=>{ if(pronState===1) _stopRec(); }, 7000);
 }
 
-async function _callClaudeWithAudio(b64, mimeType){
+function _stopRec(){
+  if(pronState!==1) return;
+  pronState = 2;
+  clearInterval(_recTimer); clearTimeout(_autoStopTimer);
+
+  if(_sr){ try{ _sr.stop(); }catch(e){} _sr = null; }
+  if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream = null; }
+
+  _setPronBtn('processing');
+  document.getElementById('pron-status').textContent = 'AI 正在评分…';
+
+  // Small delay to ensure SR final results are collected
+  setTimeout(()=> _scoreWithClaude(), 600);
+}
+
+async function _scoreWithClaude(){
   if(!wList||!wList[wIdx]){ pronState=0; _setPronBtn('idle'); return; }
   const w = wList[wIdx];
+  const heard = (_srFinal||_srInterim).trim().toLowerCase();
+
+  // Build prompt based on whether we got transcript
+  const context = heard
+    ? `Speech recognition transcript: "${heard}"\nTarget word: "${w.en}" (${w.ph})`
+    : `No speech detected (recorded ${_recSecs}s). Target word: "${w.en}" (${w.ph})`;
+
+  const prompt = `You are a strict English pronunciation coach for Chinese CET-4 students.
+
+${context}
+Chinese meaning: ${w.cn}
+
+${heard
+  ? `Evaluate if the student correctly pronounced "${w.en}". Compare the transcript to the target word. Be strict: only give 90+ for very accurate pronunciation.`
+  : `The student attempted to say "${w.en}" but speech recognition got nothing. Give coaching advice.`
+}
+
+Return JSON only (no markdown):
+{
+  "heard": "${heard || '未识别'}",
+  "score": <integer 0-100, strict>,
+  "grade": "<优秀 90+/良好 75-89/需练习 55-74/重来 0-54>",
+  "correct": <true if transcript closely matches target>,
+  "issues": ["<specific issue in Chinese, empty array if correct>"],
+  "tips": ["<one concrete improvement tip in Chinese>"],
+  "breakdown": "<syllable breakdown with stress mark, e.g. ded-i-CATE 重音第一音节>"
+}`;
+
   try{
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:500,
-        system:'You are a strict English pronunciation coach for Chinese CET-4 students. Listen to the audio carefully. Be objective. Respond with valid JSON only.',
-        messages:[{
-          role:'user',
-          content:[
-            { type:'document', source:{ type:'base64', media_type:'audio/wav', data:b64 } },
-            { type:'text', text:`The student is pronouncing: "${w.en}" (phonetic: ${w.ph}, meaning: ${w.cn})
-
-Listen to the audio. Evaluate strictly:
-- Did they say the correct word?
-- How clear and accurate is the pronunciation?
-- What specific issues are there?
-
-Respond JSON only:
-{"heard":"<what you heard>","score":<0-100 strict, 95+ only for perfect>,"grade":"<优秀/良好/需练习/重来>","correct":<true/false>,"issues":["<issue in Chinese>"],"tips":["<concrete tip in Chinese>"],"breakdown":"<syllable guide e.g. ded-i-cate 重音第一音节>"}`
-          }]
-        }]
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: 'You are an English pronunciation evaluator. Always respond with valid JSON only, no markdown fences.',
+        messages: [{ role: 'user', content: prompt }]
       })
     });
+
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-    const raw = data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
-    const r = JSON.parse(raw);
-    _showResult(r, w);
+    const raw = data.content.map(b=>b.text||'').join('').trim();
+    // Strip any accidental markdown
+    const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    const r = JSON.parse(clean);
+    _showScore(r, w);
+
   } catch(err){
-    // Fallback: local scoring based on duration
-    const score = _recSecs >= 2 ? 60 : 40;
-    _showResult({
-      heard:'（网络评分失败）',
-      score, grade: score>=60?'需练习':'重来',
-      correct: false,
-      issues:['网络连接不稳定，无法获取 AI 评分'],
-      tips:['请确保网络畅通后重试'],
-      breakdown: getSyllableGuide(w.en, w.ph)
-    }, w);
+    // Pure local fallback — no network needed
+    _localFallback(w, heard);
   }
 }
 
-function _showResult(r, w){
+function _localFallback(w, heard){
+  // Levenshtein distance scoring — no API needed
+  function lev(a,b){
+    const m=a.length,n=b.length,dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+    for(let j=0;j<=n;j++)dp[0][j]=j;
+    for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    return dp[m][n];
+  }
+  const target = w.en.toLowerCase();
+  const words = (heard||'').split(/\s+/).filter(Boolean);
+  let score = 0, correct = false;
+  if(heard){
+    const best = words.length ? Math.min(...words.map(x=>lev(x,target))) : target.length;
+    const sim = Math.max(0, 1 - best / Math.max(target.length,1));
+    correct = sim >= 0.75 || words.includes(target);
+    score = correct ? Math.round(76+sim*22) : Math.round(25+sim*48);
+    score = Math.min(98, score);
+  }
+  _showScore({
+    heard: heard||'未识别',
+    score,
+    grade: score>=90?'优秀':score>=75?'良好':score>=55?'需练习':'重来',
+    correct,
+    issues: correct ? [] : heard ? ['发音与目标词有差距，继续练习'] : ['未检测到语音，请靠近麦克风大声说'],
+    tips: ['对照音标慢速跟读，注意重音位置'],
+    breakdown: getSyllableGuide(w.en, w.ph)
+  }, w);
+}
+
+function _showScore(r, w){
   pronState = 3; _setPronBtn('done');
   const col = r.score>=85?'var(--success)':r.score>=65?'var(--warn)':'var(--rose)';
-  document.getElementById('pron-status').textContent = r.correct?'✓ 发音正确！':'继续练习';
+  document.getElementById('pron-status').textContent = r.correct ? '✓ 发音正确！' : '继续加油';
+
   let html = `
     <div class="score-badge">
       <span class="score-big" style="color:${col}">${r.score}</span>
       <span class="score-max">/100</span>
       <span class="score-grade" style="background:${col}22;color:${col};padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:8px">${r.grade}</span>
     </div>
-    <div class="pron-detail">AI 听到：「<strong style="color:var(--txt)">${r.heard||'未识别'}</strong>」${r.correct?' <span style="color:var(--success)">✓ 匹配</span>':''}</div>`;
-  (r.issues||[]).forEach(t=>{ html+=`<div class="pron-detail" style="color:var(--warn);margin-top:4px">⚠ ${t}</div>`; });
-  if(r.breakdown) html+=`<div class="pron-tip"><strong>拼读方法</strong>${r.breakdown}</div>`;
-  (r.tips||[]).forEach((t,i)=>{ if(i===0) html+=`<div class="pron-tip" style="margin-top:6px"><strong>改进建议</strong>${t}</div>`; });
-  html+=`<button class="audio-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="playAudio(event)">
-    <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>再听标准发音</button>`;
+    <div class="pron-detail">识别到：「<strong style="color:var(--txt)">${r.heard}</strong>」${r.correct?'<span style="color:var(--success);margin-left:4px">✓</span>':''}</div>`;
+
+  (r.issues||[]).forEach(t=>{
+    html += `<div class="pron-detail" style="color:var(--warn);margin-top:4px">⚠ ${t}</div>`;
+  });
+  if(r.breakdown){
+    html += `<div class="pron-tip"><strong>拼读方法</strong>${r.breakdown}</div>`;
+  }
+  if((r.tips||[]).length){
+    html += `<div class="pron-tip" style="margin-top:6px"><strong>改进建议</strong>${r.tips[0]}</div>`;
+  }
+  html += `<button class="audio-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="playAudio(event)">
+    <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>
+    再听标准发音对比
+  </button>`;
+
   document.getElementById('pron-result').innerHTML = html;
   document.getElementById('pron-result').className = 'pron-result show';
 }
 
 function getSyllableGuide(word,ph){
-  const m={abandon:"a-<b>ban</b>-don（重音第二音节）",absolute:"<b>ab</b>-so-lute（重音第一音节）",academic:"a-ca-<b>dem</b>-ic（重音第三音节）",accelerate:"ac-<b>cel</b>-er-ate（重音第二音节）",accomplish:"ac-<b>com</b>-plish（重音第二音节）",accurate:"<b>ac</b>-cu-rate（重音第一音节）",acknowledge:"ac-<b>knowl</b>-edge（重音第二音节）",adapt:"a-<b>dapt</b>（重音第二音节）",adequate:"<b>ad</b>-e-quate（重音第一音节）",admire:"ad-<b>mire</b>（重音第二音节）",advocate:"<b>ad</b>-vo-cate（重音第一音节）",affect:"af-<b>fect</b>（重音第二音节）",aggressive:"ag-<b>gres</b>-sive（重音第二音节）",ambitious:"am-<b>bi</b>-tious（重音第二音节）",analyze:"<b>an</b>-a-lyze（重音第一音节）",anticipate:"an-<b>tic</b>-i-pate（重音第二音节）",apparent:"ap-<b>par</b>-ent（重音第二音节）",appreciate:"ap-<b>pre</b>-ci-ate（重音第二音节）",appropriate:"ap-<b>pro</b>-pri-ate（重音第二音节）",concentrate:"<b>con</b>-cen-trate（重音第一音节）",communicate:"com-<b>mu</b>-ni-cate（重音第二音节）",collaborate:"col-<b>lab</b>-o-rate（重音第二音节）",confident:"<b>con</b>-fi-dent（重音第一音节）",dedicate:"<b>ded</b>-i-cate（重音第一音节）",define:"de-<b>fine</b>（重音第二音节）",decrease:"de-<b>crease</b>（重音第二音节）"};
+  const m={abandon:"a-<b>ban</b>-don（重音第二音节）",absolute:"<b>ab</b>-so-lute（重音第一音节）",academic:"a-ca-<b>dem</b>-ic（重音第三音节）",accelerate:"ac-<b>cel</b>-er-ate（重音第二音节）",accomplish:"ac-<b>com</b>-plish（重音第二音节）",accurate:"<b>ac</b>-cu-rate（重音第一音节）",acknowledge:"ac-<b>knowl</b>-edge（重音第二音节）",adapt:"a-<b>dapt</b>（重音第二音节）",adequate:"<b>ad</b>-e-quate（重音第一音节）",admire:"ad-<b>mire</b>（重音第二音节）",advocate:"<b>ad</b>-vo-cate（重音第一音节）",affect:"af-<b>fect</b>（重音第二音节）",aggressive:"ag-<b>gres</b>-sive（重音第二音节）",ambitious:"am-<b>bi</b>-tious（重音第二音节）",analyze:"<b>an</b>-a-lyze（重音第一音节）",anticipate:"an-<b>tic</b>-i-pate（重音第二音节）",apparent:"ap-<b>par</b>-ent（重音第二音节）",appreciate:"ap-<b>pre</b>-ci-ate（重音第二音节）",appropriate:"ap-<b>pro</b>-pri-ate（重音第二音节）",concentrate:"<b>con</b>-cen-trate（重音第一音节）",communicate:"com-<b>mu</b>-ni-cate（重音第二音节）",collaborate:"col-<b>lab</b>-o-rate（重音第二音节）",confident:"<b>con</b>-fi-dent（重音第一音节）",dedicate:"<b>ded</b>-i-cate（重音第一音节）",define:"de-<b>fine</b>（重音第二音节）",decrease:"de-<b>crease</b>（重音第二音节）",curious:"<b>cu</b>-ri-ous（重音第一音节）",creative:"cre-<b>a</b>-tive（重音第二音节）"};
   return m[word]||`按音标 <code style="font-family:var(--code);color:var(--gold)">${ph}</code> 逐音节发音`;
 }
 
