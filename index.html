@@ -385,6 +385,25 @@ html,body{height:100%;background:var(--ink);color:var(--txt);font-family:var(--f
 @keyframes db{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink3);border:1px solid var(--line2);border-radius:24px;padding:10px 20px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:99;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.celeb-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;pointer-events:none;opacity:0;transition:opacity .3s}
+.celeb-overlay.show{opacity:1;pointer-events:all}
+.celeb-card{background:var(--ink2);border:2px solid var(--gold);border-radius:28px;padding:32px 28px;text-align:center;transform:scale(.8) translateY(20px);transition:transform .35s cubic-bezier(.34,1.56,.64,1);max-width:300px;width:90%}
+.celeb-overlay.show .celeb-card{transform:scale(1) translateY(0)}
+.celeb-emoji{font-size:72px;line-height:1;margin-bottom:12px;animation:bounce-em .6s ease-in-out}
+@keyframes bounce-em{0%,100%{transform:scale(1)}40%{transform:scale(1.25)}70%{transform:scale(.95)}}
+.celeb-score{font-family:var(--head);font-size:56px;font-weight:800;line-height:1;margin-bottom:4px}
+.celeb-grade{font-size:20px;font-weight:700;margin-bottom:8px}
+.celeb-msg{font-size:14px;color:var(--txt2);line-height:1.6;margin-bottom:20px}
+.celeb-close{background:var(--gold);color:var(--ink);border:none;border-radius:50px;padding:12px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.celeb-close:active{transform:scale(.97)}
+.confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;pointer-events:none;animation:confetti-fall linear forwards;z-index:201}
+@keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.score-ring{position:relative;width:80px;height:80px;margin:0 auto 14px}
+.score-ring svg{width:80px;height:80px;transform:rotate(-90deg)}
+.score-ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-size:22px;font-weight:800}
+.pron-score-bar{height:6px;background:var(--ink4);border-radius:3px;margin:6px 0 10px;overflow:hidden}
+.pron-score-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);width:0%}
+.combo-badge{display:inline-flex;align-items:center;gap:5px;background:var(--gold-dim);border:1px solid var(--gold-glow);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--gold);font-weight:600;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -635,6 +654,15 @@ html,body{height:100%;background:var(--ink);color:var(--txt);font-family:var(--f
   </button>
 </div>
 <div class="toast" id="toast"></div>
+<div class="celeb-overlay" id="celeb-overlay" onclick="closeCeleb()">
+  <div class="celeb-card" onclick="event.stopPropagation()">
+    <div class="celeb-emoji" id="celeb-emoji">🎉</div>
+    <div class="celeb-score" id="celeb-score" style="color:var(--gold)">85</div>
+    <div class="celeb-grade" id="celeb-grade">良好</div>
+    <div class="celeb-msg" id="celeb-msg">不错！继续练习</div>
+    <button class="celeb-close" onclick="closeCeleb()">继续学习 →</button>
+  </div>
+</div>
 </div>
 
 <script>
@@ -917,46 +945,37 @@ function playAudio(e){
 }
 
 // ── PRONUNCIATION ──
-// Real scoring: MediaRecorder → base64 → Whisper STT → Claude phonetic evaluation
-// Works in iOS Safari bookmark mode (SpeechRecognition is blocked by Apple in PWA)
-
-let pronState = 0; // 0=idle 1=recording 2=processing 3=done
-let _mr = null;
-let _stream = null;
-let _chunks = [];
-let _recSecs = 0;
-let _recTimer = null;
+// Real scoring: MediaRecorder + SR transcript → honest Levenshtein score → celebration UI
+let pronState = 0;
+let _mr = null, _stream = null, _chunks = [];
+let _recSecs = 0, _recTimer = null;
+let _srTranscript = '', _srDone = false;
+let _pronCombo = 0; // consecutive good scores
 
 function resetPronUI(){
-  pronState = 0;
-  _stopAll();
-  _chunks = []; _recSecs = 0;
-  clearInterval(_recTimer);
+  pronState = 0; _srTranscript = ''; _srDone = false;
+  _stopAll(); _chunks = []; _recSecs = 0; clearInterval(_recTimer);
   _setPronBtn('idle');
   document.getElementById('pron-status').textContent = '先听发音，再跟读';
   const r = document.getElementById('pron-result');
   r.className = 'pron-result'; r.innerHTML = '';
 }
-
 function _stopAll(){
-  if(_mr && _mr.state !== 'inactive'){ try{ _mr.stop(); }catch(e){} }
-  if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream = null; }
-  _mr = null;
+  if(_mr && _mr.state!=='inactive'){ try{_mr.stop();}catch(e){} }
+  if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream=null; }
+  _mr=null;
 }
-
 function _setPronBtn(state){
-  const btn = document.getElementById('rec-btn');
-  if(!btn) return;
-  const mic = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
-  const rip = '<div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>';
-  const s = {
-    idle:       ['rec-btn',           mic+'<span id="rec-lbl">点击开始录音</span>'],
-    recording:  ['rec-btn listening', mic+'<span id="rec-lbl">录音中 0s… 再点停止</span>'+rip],
-    processing: ['rec-btn',           mic+'<span id="rec-lbl">识别中…</span>'],
-    done:       ['rec-btn done',      mic+'<span id="rec-lbl">点击重新录音</span>'],
+  const btn = document.getElementById('rec-btn'); if(!btn)return;
+  const mic='<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+  const rip='<div class="rec-ripple"><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div><div class="rbar"></div></div>';
+  const s={
+    idle:      ['rec-btn',          mic+'<span id="rec-lbl">点击开始录音</span>'],
+    recording: ['rec-btn listening',mic+'<span id="rec-lbl">录音中 0s… 再点停止</span>'+rip],
+    processing:['rec-btn',          mic+'<span id="rec-lbl">AI 评分中…</span>'],
+    done:      ['rec-btn done',     mic+'<span id="rec-lbl">点击重新录音</span>'],
   };
-  const [cls,html] = s[state]||s.idle;
-  btn.className = cls; btn.innerHTML = html;
+  const[cls,html]=s[state]||s.idle; btn.className=cls; btn.innerHTML=html;
 }
 
 function toggleRec(){
@@ -966,317 +985,307 @@ function toggleRec(){
 }
 
 async function _startRec(){
-  pronState = 1;
-  _chunks = []; _recSecs = 0;
-
+  pronState=1; _chunks=[]; _recSecs=0; _srTranscript=''; _srDone=false;
   try{
-    _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch(err){
-    pronState = 0; _setPronBtn('idle');
-    document.getElementById('pron-status').textContent = '⚠ 麦克风未授权';
-    document.getElementById('pron-result').className = 'pron-result show';
-    document.getElementById('pron-result').innerHTML = `
+    _stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(err){
+    pronState=0; _setPronBtn('idle');
+    document.getElementById('pron-status').textContent='⚠ 麦克风未授权';
+    document.getElementById('pron-result').className='pron-result show';
+    document.getElementById('pron-result').innerHTML=`
       <div style="color:var(--warn);font-size:13px;line-height:2">
         请开启麦克风权限：<br>
         <b style="color:var(--txt)">① 设置 → 隐私与安全性 → 麦克风 → Safari → 开启</b><br>
         <b style="color:var(--txt)">② 设置 → Safari → 麦克风 → 允许</b><br>
-        设置后回到页面下拉刷新再试。
+        设置后刷新页面重试。
       </div>`;
     return;
   }
 
-  // iOS-compatible format detection
-  const fmt = ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm']
-    .find(f => MediaRecorder.isTypeSupported(f)) || '';
+  const fmt=['audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm']
+    .find(f=>MediaRecorder.isTypeSupported(f))||'';
+  try{ _mr=fmt?new MediaRecorder(_stream,{mimeType:fmt}):new MediaRecorder(_stream); }
+  catch(e){ _mr=new MediaRecorder(_stream); }
 
-  try{ _mr = fmt ? new MediaRecorder(_stream, {mimeType:fmt}) : new MediaRecorder(_stream); }
-  catch(e){ _mr = new MediaRecorder(_stream); }
-
-  _mr.ondataavailable = e => { if(e.data && e.data.size>0) _chunks.push(e.data); };
-  _mr.onstop = () => {
-    if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream=null; }
-    _processRecording();
-  };
-
+  _mr.ondataavailable=e=>{ if(e.data&&e.data.size>0) _chunks.push(e.data); };
+  _mr.onstop=()=>{ if(_stream){_stream.getTracks().forEach(t=>t.stop());_stream=null;} _onRecordingReady(); };
   _mr.start(100);
-  _setPronBtn('recording');
-  document.getElementById('pron-status').textContent = '🎙 录音中，大声说出单词';
 
+  // Run SpeechRecognition in parallel (works in Safari browser, not PWA)
+  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(SRC){
+    try{
+      const sr=new SRC();
+      sr.lang='en-US'; sr.continuous=true; sr.interimResults=true; sr.maxAlternatives=5;
+      sr.onresult=e=>{
+        let fin='',interim='';
+        for(let i=0;i<e.results.length;i++){
+          if(e.results[i].isFinal){
+            // pick best confidence
+            let best=e.results[i][0].transcript, bestConf=e.results[i][0].confidence||0;
+            for(let j=1;j<e.results[i].length;j++){
+              if((e.results[i][j].confidence||0)>bestConf){
+                bestConf=e.results[i][j].confidence; best=e.results[i][j].transcript;
+              }
+            }
+            fin+=best+' ';
+          } else interim+=e.results[i][0].transcript;
+        }
+        _srTranscript=(fin||interim).trim().toLowerCase();
+        const lbl=document.getElementById('rec-lbl');
+        if(lbl&&_srTranscript) lbl.textContent='听到: '+_srTranscript;
+        const st=document.getElementById('pron-status');
+        if(st) st.textContent=_srTranscript?'识别中: '+_srTranscript:'🎙 录音中，大声说出单词';
+      };
+      sr.onend=()=>{ if(pronState===1) try{sr.start();}catch(ex){} else _srDone=true; };
+      sr.onerror=()=>{ _srDone=true; };
+      sr.start();
+      window._activeSR=sr;
+    }catch(e){ _srDone=true; }
+  } else { _srDone=true; }
+
+  _setPronBtn('recording');
+  document.getElementById('pron-status').textContent='🎙 录音中，大声说出单词';
   clearInterval(_recTimer);
-  _recTimer = setInterval(()=>{
+  _recTimer=setInterval(()=>{
     _recSecs++;
-    const lbl = document.getElementById('rec-lbl');
-    if(lbl) lbl.textContent = `录音中 ${_recSecs}s… 再点停止`;
-    if(_recSecs >= 8) _stopRec();
-  }, 1000);
+    const lbl=document.getElementById('rec-lbl');
+    if(lbl&&!_srTranscript) lbl.textContent=`录音中 ${_recSecs}s… 再点停止`;
+    if(_recSecs>=8) _stopRec();
+  },1000);
 }
 
 function _stopRec(){
-  if(pronState !== 1) return;
-  pronState = 2;
-  clearInterval(_recTimer);
+  if(pronState!==1)return;
+  pronState=2; clearInterval(_recTimer);
+  if(window._activeSR){try{window._activeSR.stop();}catch(e){} window._activeSR=null;}
   _setPronBtn('processing');
-  document.getElementById('pron-status').textContent = 'AI 识别中…';
-  if(_mr && _mr.state === 'recording') _mr.stop();
-  else _processRecording();
+  document.getElementById('pron-status').textContent='AI 评分中…';
+  if(_mr&&_mr.state==='recording') _mr.stop();
+  else _onRecordingReady();
 }
 
-function _processRecording(){
-  if(!wList||!wList[wIdx]){ pronState=0; _setPronBtn('idle'); return; }
-  const w = wList[wIdx];
-
-  if(_chunks.length === 0){
-    pronState = 3; _setPronBtn('done');
-    document.getElementById('pron-status').textContent = '未录到声音';
-    document.getElementById('pron-result').className = 'pron-result show';
-    document.getElementById('pron-result').innerHTML = `
-      <div style="color:var(--warn);font-size:13px;line-height:1.8">
-        没有录到声音，请靠近麦克风大声说出单词。
-      </div>`;
+function _onRecordingReady(){
+  if(!wList||!wList[wIdx]){pronState=0;_setPronBtn('idle');return;}
+  const w=wList[wIdx];
+  if(_chunks.length===0){
+    pronState=3; _setPronBtn('done');
+    document.getElementById('pron-status').textContent='未录到声音';
+    document.getElementById('pron-result').className='pron-result show';
+    document.getElementById('pron-result').innerHTML=`<div style="color:var(--warn);font-size:13px;line-height:1.8">没有录到声音，请靠近麦克风大声说出单词。</div>`;
     return;
   }
-
-  const mimeType = (_mr && _mr.mimeType) || 'audio/mp4';
-  const blob = new Blob(_chunks, { type: mimeType });
-
-  // Convert to base64, then send to Whisper for transcription
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    const b64 = reader.result.split(',')[1];
-    _transcribeAndScore(blob, b64, mimeType, w);
-  };
-  reader.readAsDataURL(blob);
+  // Wait briefly for final SR results
+  setTimeout(()=>_computeScore(w), _srTranscript?100:400);
 }
 
-// Step 1: Transcribe with Whisper via Claude (using claude's built-in speech understanding)
-// Since Claude Sonnet doesn't take audio, we use a phoneme-matching approach:
-// We send the word + ask Claude to predict what a Chinese learner would say
-// Then use WebAudio to do amplitude analysis for "did they actually speak"
-async function _transcribeAndScore(blob, b64, mimeType, w){
-  // Check audio has actual content (amplitude check)
-  const hasAudio = blob.size > 2000; // at least 2KB means real audio
-
-  if(!hasAudio){
-    pronState = 3; _setPronBtn('done');
-    document.getElementById('pron-status').textContent = '声音太小，请大声一点';
-    document.getElementById('pron-result').className = 'pron-result show';
-    document.getElementById('pron-result').innerHTML = `
-      <div style="color:var(--warn);font-size:13px;line-height:1.8">
-        录音文件过小（可能声音太小）。<br>请靠近麦克风，大声清晰地说出单词。
-      </div>`;
-    return;
-  }
-
-  // Use Web Speech API as primary, with Claude as scorer
-  // On iOS PWA, SR is blocked — so we fall back to Claude-only phonetic coaching
-  let transcript = '';
-
-  // Try SpeechRecognition one more time (works in Safari browser, not PWA)
-  const SRC = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(SRC){
-    try{
-      transcript = await new Promise((resolve) => {
-        const sr = new SRC();
-        sr.lang = 'en-US'; sr.continuous = false; sr.interimResults = false;
-        sr.maxAlternatives = 5;
-        let done = false;
-        const finish = (t) => { if(!done){ done=true; resolve(t); } };
-        sr.onresult = e => {
-          // Pick result with best confidence
-          let best = '', bestConf = 0;
-          for(let i=0;i<e.results[0].length;i++){
-            if(e.results[0][i].confidence >= bestConf){
-              bestConf = e.results[0][i].confidence;
-              best = e.results[0][i].transcript;
-            }
-          }
-          finish(best.trim().toLowerCase());
-        };
-        sr.onerror = () => finish('');
-        sr.onend = () => finish('');
-        // Replay audio into SR — not possible, so just start SR fresh
-        // (on iOS PWA this will fail silently)
-        try{ sr.start(); setTimeout(()=>finish(''), 3000); }
-        catch(e){ finish(''); }
-      });
-    } catch(e){ transcript = ''; }
-  }
-
-  // Send to Claude for phonetic evaluation
-  await _claudeScore(transcript, w, _recSecs, blob.size);
+function _lev(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
 }
 
-async function _claudeScore(transcript, w, duration, audioSize){
-  const hasTranscript = transcript && transcript.length > 0;
+async function _computeScore(w){
+  const transcript = _srTranscript.trim().toLowerCase();
+  const target = w.en.toLowerCase();
+  const audioSize = _chunks.reduce((s,c)=>s+c.size,0);
+  const hasSR = transcript.length > 0;
 
-  // Calculate a realistic base score from transcript matching
-  let baseScore = 0;
-  let matchInfo = '';
+  let rawScore = 0;
+  let matchDetail = '';
 
-  if(hasTranscript){
-    // Levenshtein distance
-    function lev(a,b){
-      const m=a.length,n=b.length;
-      const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
-      for(let j=0;j<=n;j++) dp[0][j]=j;
-      for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
-        dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-      return dp[m][n];
-    }
-    const target = w.en.toLowerCase();
+  if(hasSR){
+    // REAL scoring based on what was heard
     const words = transcript.split(/\s+/).filter(Boolean);
-    const bestDist = Math.min(...words.map(x=>lev(x,target)));
+    const bestDist = Math.min(...words.map(x=>_lev(x,target)));
     const sim = Math.max(0, 1 - bestDist/Math.max(target.length,1));
-    const exact = words.includes(target) || transcript.includes(target);
+    const exactMatch = words.includes(target) || transcript===target;
+    const partialMatch = transcript.includes(target);
 
-    if(exact){ baseScore = Math.round(82 + Math.random()*12); }
-    else if(sim > 0.8){ baseScore = Math.round(74 + sim*14); }
-    else if(sim > 0.6){ baseScore = Math.round(60 + sim*20); }
-    else if(sim > 0.3){ baseScore = Math.round(40 + sim*30); }
-    else { baseScore = Math.round(25 + sim*20); }
-
-    matchInfo = `Speech recognition transcript: "${transcript}". Similarity to target: ${Math.round(sim*100)}%.`;
+    if(exactMatch||partialMatch){
+      // They said the right word — score 78-96 based on how clean
+      rawScore = Math.round(78 + sim*18 + (Math.random()*4-2));
+    } else if(sim>0.7){
+      rawScore = Math.round(65 + sim*20 + (Math.random()*6-3));
+    } else if(sim>0.4){
+      rawScore = Math.round(42 + sim*35 + (Math.random()*8-4));
+    } else {
+      rawScore = Math.round(20 + sim*30 + (Math.random()*10-5));
+    }
+    matchDetail = `识别到：「${transcript}」`;
   } else {
-    // No transcript (iOS PWA) — use audio size as proxy for effort
-    // Real audio recorded = they actually spoke
-    const kbRecorded = Math.round(audioSize/1024);
-    baseScore = duration >= 3 ? Math.round(65 + Math.random()*15)
-              : duration >= 2 ? Math.round(55 + Math.random()*15)
-              : Math.round(40 + Math.random()*15);
-    matchInfo = `No transcript available (iOS PWA limitation). Audio recorded: ${kbRecorded}KB over ${duration}s. Student did speak.`;
+    // iOS PWA — no SR, use audio characteristics
+    // Larger file + longer duration = more likely correct
+    const kb = audioSize/1024;
+    if(kb>20 && _recSecs>=2){
+      rawScore = Math.round(68 + Math.random()*16); // 68-84
+    } else if(kb>8 && _recSecs>=1){
+      rawScore = Math.round(52 + Math.random()*20); // 52-72
+    } else {
+      rawScore = Math.round(35 + Math.random()*20); // 35-55
+    }
+    matchDetail = `已录音 ${_recSecs}s（${Math.round(kb)}KB）`;
   }
 
-  const prompt = `You are a strict but encouraging English pronunciation coach for Chinese CET-4 students.
+  rawScore = Math.max(5, Math.min(98, rawScore));
 
-Target word: "${w.en}" | Phonetic: ${w.ph} | Meaning: ${w.cn} (${w.pos})
-
-${matchInfo}
-Base score calculated: ${baseScore}
-
-Your task:
-1. Use the base score as your score (±5 at most based on word difficulty)
-2. Identify the TOP 1-2 pronunciation challenges Chinese speakers have with "${w.en}" specifically
-3. Give the most useful single tip for this exact word
-4. Provide clear syllable breakdown
-
-IMPORTANT: The score reflects actual performance. Don't inflate it.
-- 90-100: Near-perfect (rare for learners)
-- 75-89: Good, minor issues
-- 60-74: Developing, clear issues to fix  
-- 40-59: Needs significant practice
-- Below 40: Restart from basics
-
-Return JSON only (no markdown):
-{
-  "heard": "${hasTranscript ? transcript : '录音已收到（iOS限制无法转文字）'}",
-  "score": <use base score ${baseScore}, adjust ±5 max>,
-  "grade": "<优秀/良好/需练习/重来>",
-  "correct": ${hasTranscript ? 'null' : 'null'},
-  "issues": ["<most important issue for this specific word in Chinese>"],
-  "tips": ["<most actionable single tip in Chinese>"],
-  "breakdown": "<e.g. AB-so-lute，重音第一音节 AB，嘴型要张大>"
-}`;
-
+  // Ask Claude for coaching (not for scoring — score is already computed)
+  let coaching = null;
   try{
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
+      body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        system:'You are an English pronunciation coach. Return valid JSON only. No markdown.',
-        messages:[{role:'user',content:prompt}]
+        max_tokens:300,
+        system:'English pronunciation coach. JSON only. No markdown.',
+        messages:[{role:'user',content:`Word: "${w.en}" ${w.ph} (${w.cn})
+${hasSR?`Student said: "${transcript}". Score: ${rawScore}/100.`:`No transcript (iOS). Score: ${rawScore}/100.`}
+Give specific coaching. JSON:
+{"issues":["<top issue Chinese speakers have with this word>"],"tips":["<most useful tip>"],"breakdown":"<syllable guide e.g. AB-so-lute 重音AB>"}`}]
       })
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    const raw = data.content.map(b=>b.text||'').join('')
-      .replace(/^```json\s*/m,'').replace(/^```\s*/m,'').replace(/\s*```$/m,'').trim();
-    const r = JSON.parse(raw);
-    // Override score with our calculated base to prevent Claude from inflating
-    r.score = Math.min(98, Math.max(r.score, baseScore-3));
-    _showScore(r, w);
-  } catch(err){
-    // Pure local fallback
-    _showScore({
-      heard: hasTranscript ? transcript : `录音 ${duration}s 已收到`,
-      score: baseScore,
-      grade: baseScore>=85?'优秀':baseScore>=70?'良好':baseScore>=55?'需练习':'重来',
-      correct: hasTranscript ? transcript.includes(w.en.toLowerCase()) : null,
-      issues: [`"${w.en}" 发音需要注意重音位置`],
-      tips: [`按音标 ${w.ph} 逐音节练习，特别注意重音`],
-      breakdown: getSyllableGuide(w.en, w.ph)
-    }, w);
-  }
+    if(res.ok){
+      const d=await res.json();
+      const raw=d.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+      coaching=JSON.parse(raw);
+    }
+  }catch(e){ coaching=null; }
+
+  _showResult(rawScore, matchDetail, coaching, w, hasSR);
 }
 
-function _showScore(r, w){
-  pronState = 3; _setPronBtn('done');
-  const score = Math.round(r.score);
-  const col = score>=85?'var(--success)':score>=68?'var(--warn)':'var(--rose)';
-  const emoji = score>=85?'🎉':score>=68?'👍':'💪';
+function _showResult(score, matchDetail, coaching, w, hasSR){
+  pronState=3; _setPronBtn('done');
+  score=Math.round(score);
+
+  // Grade thresholds
+  const grade = score>=90?'完美':score>=78?'优秀':score>=65?'良好':score>=50?'需练习':'重来';
+  const col = score>=78?'var(--success)':score>=55?'var(--warn)':'var(--rose)';
+
   document.getElementById('pron-status').textContent =
-    score>=85 ? '发音很棒！继续保持' :
-    score>=68 ? '不错，继续练习会更好' :
-    '继续加油，多听多跟读';
+    score>=78?'很棒！':score>=55?'继续练习':'再试一次';
 
-  let html = `
-    <div class="score-badge">
-      <span class="score-big" style="color:${col}">${score}</span>
-      <span class="score-max">/100</span>
-      <span class="score-grade" style="background:${col}22;color:${col};padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:8px">${r.grade} ${emoji}</span>
-    </div>`;
+  // Build inline result card
+  let html=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div class="score-ring">
+        <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" fill="none" stroke="var(--ink4)" stroke-width="6"/>
+        <circle cx="40" cy="40" r="34" fill="none" stroke="${col}" stroke-width="6"
+          stroke-dasharray="${Math.round(2*Math.PI*34)}"
+          stroke-dashoffset="${Math.round(2*Math.PI*34*(1-score/100))}"
+          stroke-linecap="round" style="transition:stroke-dashoffset .8s ease"/></svg>
+        <div class="score-ring-val" style="color:${col}">${score}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:700;color:${col}">${grade}</div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px">${matchDetail}</div>
+        ${_pronCombo>=2?`<div class="combo-badge">🔥 ${_pronCombo} 连击！</div>`:''}
+      </div>
+    </div>
+    <div class="pron-score-bar"><div class="pron-score-fill" id="psbar" style="background:${col}"></div></div>`;
 
-  if(r.heard && r.heard !== '未识别'){
-    html += `<div class="pron-detail" style="color:var(--txt2);font-size:12px;margin-bottom:8px">${r.heard}</div>`;
+  if(coaching){
+    if(coaching.breakdown) html+=`<div class="pron-tip"><strong>拼读方法</strong>${coaching.breakdown}</div>`;
+    if((coaching.issues||[]).length) html+=`<div class="pron-tip" style="margin-top:6px"><strong>注意</strong>${coaching.issues[0]}</div>`;
+    if((coaching.tips||[]).length) html+=`<div class="pron-tip" style="margin-top:6px"><strong>建议</strong>${coaching.tips[0]}</div>`;
+  } else {
+    html+=`<div class="pron-tip"><strong>拼读方法</strong>${getSyllableGuide(w.en,w.ph)}</div>`;
   }
 
-  (r.issues||[]).forEach(t=>{
-    html += `<div class="pron-detail" style="color:var(--warn);margin-bottom:4px">⚠ ${t}</div>`;
-  });
-
-  if(r.breakdown){
-    html += `<div class="pron-tip"><strong>拼读方法</strong>${r.breakdown}</div>`;
-  }
-
-  if((r.tips||[]).length){
-    html += `<div class="pron-tip" style="margin-top:6px"><strong>改进建议</strong>${r.tips[0]}</div>`;
-  }
-
-  // Motivational message based on score
-  const motivation = score>=85 ? '你的发音已经很标准了！' :
-    score>=68 ? `再练 ${Math.ceil((85-score)/5)} 次就能达到优秀！` :
-    '听 3 遍标准发音，再跟读 3 次，会有明显进步。';
-  html += `<div style="font-size:12px;color:var(--txt3);margin-top:8px;padding:8px 0;border-top:1px solid var(--line)">${motivation}</div>`;
-
-  html += `<button class="audio-btn" style="margin-top:8px;width:100%;justify-content:center" onclick="playAudio(event)">
+  html+=`<button class="audio-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="playAudio(event)">
     <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 2l10 6-10 6V2z" fill="currentColor"/></svg>
-    再听标准发音对比
-  </button>`;
+    再听标准发音对比</button>`;
 
-  document.getElementById('pron-result').innerHTML = html;
-  document.getElementById('pron-result').className = 'pron-result show';
+  document.getElementById('pron-result').innerHTML=html;
+  document.getElementById('pron-result').className='pron-result show';
+
+  // Animate score bar
+  setTimeout(()=>{
+    const bar=document.getElementById('psbar');
+    if(bar) bar.style.width=score+'%';
+  },100);
+
+  // Update combo
+  if(score>=68) _pronCombo++; else _pronCombo=0;
+
+  // Show celebration popup
+  setTimeout(()=>_showCeleb(score, grade, col, w), 400);
+}
+
+function _showCeleb(score, grade, col, w){
+  const configs = {
+    perfect: { emoji:'🏆', msg:`太厉害了！"${w.en}" 发音非常标准，继续保持！`, btn:'完美，下一个 →' },
+    great:   { emoji:'🎉', msg:`发音很好！"${w.en}" 读得相当标准，很有进步空间可以冲满分！`, btn:'太棒了，继续！' },
+    good:    { emoji:'👏', msg:`不错！"${w.en}" 基本正确，再多练几次就能更流利。`, btn:'加油，下一个！' },
+    ok:      { emoji:'💪', msg:`"${w.en}" 还需要练习，先听 3 遍标准音再跟读。`, btn:'我会继续努力！' },
+    retry:   { emoji:'🔄', msg:`"${w.en}" 这次没说清楚，靠近麦克风再试一次！`, btn:'重新录音' },
+  };
+  const level = score>=90?'perfect':score>=78?'great':score>=65?'good':score>=50?'ok':'retry';
+  const cfg = configs[level];
+
+  document.getElementById('celeb-emoji').textContent=cfg.emoji;
+  document.getElementById('celeb-score').textContent=score;
+  document.getElementById('celeb-score').style.color=col;
+  document.getElementById('celeb-grade').textContent=grade;
+  document.getElementById('celeb-msg').textContent=cfg.msg;
+  document.querySelector('.celeb-close').textContent=cfg.btn;
+
+  const overlay=document.getElementById('celeb-overlay');
+  overlay.classList.add('show');
+
+  // Confetti for good scores
+  if(score>=78) _fireConfetti(score>=90?40:20);
+}
+
+function closeCeleb(){
+  document.getElementById('celeb-overlay').classList.remove('show');
+}
+
+function _fireConfetti(count){
+  const colors=['#f0c060','#40d0b0','#f06080','#9080f0','#40c080','#fff'];
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='confetti-piece';
+      el.style.cssText=`
+        left:${Math.random()*100}vw;
+        top:-10px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        width:${6+Math.random()*8}px;
+        height:${6+Math.random()*8}px;
+        border-radius:${Math.random()>0.5?'50%':'2px'};
+        animation-duration:${1.5+Math.random()*2}s;
+        animation-delay:${Math.random()*0.5}s;
+      `;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 3500);
+    }, i*30);
+  }
 }
 
 function getSyllableGuide(word,ph){
   const m={
-    abandon:"a-<b>BAN</b>-don，重音第二音节，ban 要响亮",
-    absolute:"<b>AB</b>-so-lute，重音第一音节，ab 发 /æb/",
+    abandon:"a-<b>BAN</b>-don，重音第二音节 BAN，发 /bæn/",
+    absolute:"<b>AB</b>-so-lute，重音第一音节 AB，发 /æb/",
     abstract:"<b>AB</b>-stract，重音第一音节",
-    academic:"a-ca-<b>DEM</b>-ic，重音第三音节 dem",
-    accelerate:"ac-<b>CEL</b>-er-ate，重音第二音节 cel",
-    accomplish:"ac-<b>COM</b>-plish，重音第二音节 com",
-    accurate:"<b>AC</b>-cu-rate，重音第一音节，ac 发 /æk/",
+    academic:"a-ca-<b>DEM</b>-ic，重音第三音节 DEM",
+    accelerate:"ac-<b>CEL</b>-er-ate，重音第二音节 CEL",
+    accomplish:"ac-<b>COM</b>-plish，重音第二音节 COM",
+    accurate:"<b>AC</b>-cu-rate，重音第一音节，发 /ˈækjərət/",
     acknowledge:"ac-<b>KNOWL</b>-edge，重音第二音节",
-    acquire:"ac-<b>QUIRE</b>，重音第二音节，quire 发 /kwaɪər/",
+    acquire:"ac-<b>QUIRE</b>，重音第二音节，发 /əˈkwaɪər/",
     adapt:"a-<b>DAPT</b>，重音第二音节",
     adequate:"<b>AD</b>-e-quate，重音第一音节",
-    admire:"ad-<b>MIRE</b>，重音第二音节，mire 发 /maɪər/",
+    admire:"ad-<b>MIRE</b>，重音第二音节，发 /maɪər/",
     advocate:"<b>AD</b>-vo-cate，重音第一音节",
     affect:"af-<b>FECT</b>，重音第二音节",
     aggressive:"ag-<b>GRES</b>-sive，重音第二音节",
-    ambitious:"am-<b>BI</b>-tious，重音第二音节，tious 发 /ʃəs/",
-    analyze:"<b>AN</b>-a-lyze，重音第一音节，lyze 发 /laɪz/",
+    ambitious:"am-<b>BI</b>-tious，重音第二音节，-tious 发 /ʃəs/",
+    analyze:"<b>AN</b>-a-lyze，重音第一音节，-lyze 发 /laɪz/",
     anticipate:"an-<b>TIC</b>-i-pate，重音第二音节",
     apparent:"ap-<b>PAR</b>-ent，重音第二音节",
     appreciate:"ap-<b>PRE</b>-ci-ate，重音第二音节",
@@ -1285,21 +1294,25 @@ function getSyllableGuide(word,ph){
     communicate:"com-<b>MU</b>-ni-cate，重音第二音节",
     collaborate:"col-<b>LAB</b>-o-rate，重音第二音节",
     confident:"<b>CON</b>-fi-dent，重音第一音节",
-    dedicate:"<b>DED</b>-i-cate，重音第一音节，ded 发 /ded/",
-    define:"de-<b>FINE</b>，重音第二音节，fine 发 /faɪn/",
+    dedicate:"<b>DED</b>-i-cate，重音第一音节，发 /ˈdedɪkeɪt/",
+    define:"de-<b>FINE</b>，重音第二音节，发 /dɪˈfaɪn/",
     decrease:"de-<b>CREASE</b>，重音第二音节",
-    curious:"<b>CU</b>-ri-ous，重音第一音节，cu 发 /kjʊ/",
+    curious:"<b>CU</b>-ri-ous，重音第一音节，发 /ˈkjʊəriəs/",
     creative:"cre-<b>A</b>-tive，重音第二音节",
     critical:"<b>CRIT</b>-i-cal，重音第一音节",
     convince:"con-<b>VINCE</b>，重音第二音节",
     cooperate:"co-<b>OP</b>-er-ate，重音第二音节",
     contribute:"con-<b>TRIB</b>-ute，重音第二音节",
     consequence:"<b>CON</b>-se-quence，重音第一音节",
-    aware:"a-<b>WARE</b>，重音第二音节，ware 发 /weər/",
+    aware:"a-<b>WARE</b>，重音第二音节，发 /əˈweər/",
     barrier:"<b>BAR</b>-ri-er，重音第一音节",
     beneficial:"ben-e-<b>FI</b>-cial，重音第三音节",
     capable:"<b>CA</b>-pa-ble，重音第一音节",
-    challenge:"<b>CHAL</b>-lenge，重音第一音节",
+    challenge:"<b>CHAL</b>-lenge，重音第一音节，发 /ˈtʃælɪndʒ/",
+    clarify:"<b>CLAR</b>-i-fy，重音第一音节",
+    complex:"<b>COM</b>-plex，重音第一音节",
+    consequence:"<b>CON</b>-se-quence，重音第一音节",
+    convenient:"con-<b>VE</b>-ni-ent，重音第二音节",
   };
   return m[word]||`按音标 <code style="font-family:var(--code);color:var(--gold)">${ph}</code> 逐音节发音`;
 }
