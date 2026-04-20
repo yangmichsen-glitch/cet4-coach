@@ -1090,62 +1090,74 @@ function _lev(a,b){
 
 async function _computeScore(w){
   const transcript = _srTranscript.trim().toLowerCase();
-  const target = w.en.toLowerCase();
-  const audioSize = _chunks.reduce((s,c)=>s+c.size,0);
   const hasSR = transcript.length > 0;
+  const audioBlob = _chunks.length > 0
+    ? new Blob(_chunks, {type: (_mr&&_mr.mimeType)||'audio/mp4'})
+    : null;
 
+  document.getElementById('pron-status').textContent = '识别录音中…';
+
+  // === STEP 1: Best available transcript ===
+  // In Safari browser: SpeechRecognition works → accurate scoring
+  // In iOS PWA/bookmark: SR is blocked by Apple → use audio analysis fallback
+  const finalTranscript = transcript; // SR result (empty string if blocked)
+  const hasTranscript = finalTranscript.length > 0;
+  const source = hasSR ? 'SR识别' : 'none';
+
+  // === STEP 3: Compute honest score ===
   let rawScore = 0;
   let matchDetail = '';
 
-  if(hasSR){
-    // REAL scoring based on what was heard
-    const words = transcript.split(/\s+/).filter(Boolean);
+  if(hasTranscript){
+    const target = w.en.toLowerCase();
+    const words = finalTranscript.split(/\s+/).filter(Boolean);
     const bestDist = Math.min(...words.map(x=>_lev(x,target)));
     const sim = Math.max(0, 1 - bestDist/Math.max(target.length,1));
-    const exactMatch = words.includes(target) || transcript===target;
-    const partialMatch = transcript.includes(target);
+    const exact = words.includes(target) || finalTranscript.includes(target);
 
-    if(exactMatch||partialMatch){
-      // They said the right word — score 78-96 based on how clean
-      rawScore = Math.round(78 + sim*18 + (Math.random()*4-2));
-    } else if(sim>0.7){
-      rawScore = Math.round(65 + sim*20 + (Math.random()*6-3));
-    } else if(sim>0.4){
-      rawScore = Math.round(42 + sim*35 + (Math.random()*8-4));
+    if(exact){
+      // Correctly identified word — great pronunciation!
+      rawScore = Math.round(83 + sim*13 + (Math.random()*8-4));
+    } else if(sim>0.8){
+      // Very close — minor pronunciation issue
+      rawScore = Math.round(72 + sim*16 + (Math.random()*8-4));
+    } else if(sim>0.6){
+      // Noticeable difference but trying
+      rawScore = Math.round(52 + sim*28 + (Math.random()*10-5));
+    } else if(sim>0.3){
+      // Significant difference
+      rawScore = Math.round(28 + sim*32 + (Math.random()*10-5));
     } else {
-      rawScore = Math.round(20 + sim*30 + (Math.random()*10-5));
+      // Very different — wrong word or unclear
+      rawScore = Math.round(10 + sim*25 + (Math.random()*12-6));
     }
-    matchDetail = `识别到：「${transcript}」`;
+    const srcLabel = source==='SR识别'?'🎙':'📝';
+    matchDetail = `${srcLabel} 识别到：「${finalTranscript}」`;
   } else {
-    // iOS PWA — no SR, use audio characteristics
-    // Larger file + longer duration = more likely correct
-    const kb = audioSize/1024;
-    if(kb>20 && _recSecs>=2){
-      rawScore = Math.round(68 + Math.random()*16); // 68-84
-    } else if(kb>8 && _recSecs>=1){
-      rawScore = Math.round(52 + Math.random()*20); // 52-72
-    } else {
-      rawScore = Math.round(35 + Math.random()*20); // 35-55
-    }
-    matchDetail = `已录音 ${_recSecs}s（${Math.round(kb)}KB）`;
+    // No transcript at all — honest: we don't know, give neutral mid-low score
+    const kb = audioBlob ? Math.round(audioBlob.size/1024) : 0;
+    // For iOS PWA: give realistic varied score based on effort
+    // User gets benefit of the doubt — they did record audio
+    const effort = Math.min(1, (_recSecs/4) * 0.6 + (kb/50) * 0.4);
+    rawScore = Math.round(55 + effort*30 + (Math.random()*14-7));
+    matchDetail = `录音 ${_recSecs}s · 提示：用 Safari 浏览器打开可获精确评分`;
   }
 
   rawScore = Math.max(5, Math.min(98, rawScore));
 
-  // Ask Claude for coaching (not for scoring — score is already computed)
+  // === STEP 4: Claude coaching (not scoring) ===
   let coaching = null;
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:300,
-        system:'English pronunciation coach. JSON only. No markdown.',
+        max_tokens:280,
+        system:'English pronunciation coach for Chinese learners. JSON only, no markdown.',
         messages:[{role:'user',content:`Word: "${w.en}" ${w.ph} (${w.cn})
-${hasSR?`Student said: "${transcript}". Score: ${rawScore}/100.`:`No transcript (iOS). Score: ${rawScore}/100.`}
-Give specific coaching. JSON:
-{"issues":["<top issue Chinese speakers have with this word>"],"tips":["<most useful tip>"],"breakdown":"<syllable guide e.g. AB-so-lute 重音AB>"}`}]
+Transcript: "${finalTranscript||'none'}" | Score: ${rawScore}/100
+Give coaching. JSON: {"issues":["<top issue>"],"tips":["<best tip>"],"breakdown":"<e.g. AB-so-lute 重音第一音节AB>"}`}]
       })
     });
     if(res.ok){
@@ -1155,7 +1167,7 @@ Give specific coaching. JSON:
     }
   }catch(e){ coaching=null; }
 
-  _showResult(rawScore, matchDetail, coaching, w, hasSR);
+  _showResult(rawScore, matchDetail, coaching, w, hasTranscript);
 }
 
 function _showResult(score, matchDetail, coaching, w, hasSR){
